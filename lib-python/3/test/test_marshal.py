@@ -230,7 +230,6 @@ class BugsTestCase(unittest.TestCase):
             self.assertRaises(ValueError, marshal.loads, s)
         run_tests(2**20, check)
 
-    @support.impl_detail('specific recursion check')
     def test_recursion_limit(self):
         # Create a deeply nested structure.
         head = last = []
@@ -316,11 +315,6 @@ class BugsTestCase(unittest.TestCase):
                 if n is not None and n > 4:
                     n += 10**6
                 return n
-            def read(self, n):   # PyPy calls read(), not readinto()
-                result = super().read(n)
-                if len(result) > 4:
-                    result += b'\x00' * (10**6)
-                return result
         for value in (1.0, 1j, b'0123456789', '0123456789'):
             self.assertRaises(ValueError, marshal.load,
                               BadReader(marshal.dumps(value)))
@@ -332,10 +326,6 @@ class BugsTestCase(unittest.TestCase):
 
 LARGE_SIZE = 2**31
 pointer_size = 8 if sys.maxsize > 0xFFFFFFFF else 4
-if support.check_impl_detail(pypy=False):
-    sizeof_large_size = sys.getsizeof(LARGE_SIZE-1)
-else:
-    sizeof_large_size = 32  # Some value for PyPy
 
 class NullWriter:
     def write(self, s):
@@ -363,13 +353,13 @@ class LargeValuesTestCase(unittest.TestCase):
         self.check_unmarshallable([None] * size)
 
     @support.bigmemtest(size=LARGE_SIZE,
-            memuse=pointer_size*12 + sizeof_large_size,
+            memuse=pointer_size*12 + sys.getsizeof(LARGE_SIZE-1),
             dry_run=False)
     def test_set(self, size):
         self.check_unmarshallable(set(range(size)))
 
     @support.bigmemtest(size=LARGE_SIZE,
-            memuse=pointer_size*12 + sizeof_large_size,
+            memuse=pointer_size*12 + sys.getsizeof(LARGE_SIZE-1),
             dry_run=False)
     def test_frozenset(self, size):
         self.check_unmarshallable(frozenset(range(size)))
@@ -395,8 +385,7 @@ def CollectObjectIDs(ids, obj):
 class InstancingTestCase(unittest.TestCase, HelperMixin):
     keys = (123, 1.2345, 'abc', (123, 'abc'), frozenset({123, 'abc'}))
 
-    def helper3(self, rsample, recursive=False, simple=False,
-                check_sharing=True, check_non_sharing=True):
+    def helper3(self, rsample, recursive=False, simple=False):
         #we have two instances
         sample = (rsample, rsample)
 
@@ -407,22 +396,17 @@ class InstancingTestCase(unittest.TestCase, HelperMixin):
             n3 = CollectObjectIDs(set(), marshal.loads(s3))
 
             #same number of instances generated
-            # except in one corner case on top of pypy, for code objects
-            if check_sharing:
-                self.assertEqual(n3, n0)
+            self.assertEqual(n3, n0)
 
         if not recursive:
             #can compare with version 2
             s2 = marshal.dumps(sample, 2)
             n2 = CollectObjectIDs(set(), marshal.loads(s2))
             #old format generated more instances
-            # except on pypy where equal ints or floats always have
-            # the same id anyway
-            if check_non_sharing:
-                self.assertGreater(n2, n0)
+            self.assertGreater(n2, n0)
 
             #if complex objects are in there, old format is larger
-            if check_non_sharing and not simple:
+            if not simple:
                 self.assertGreater(len(s2), len(s3))
             else:
                 self.assertGreaterEqual(len(s2), len(s3))
@@ -430,14 +414,12 @@ class InstancingTestCase(unittest.TestCase, HelperMixin):
     def testInt(self):
         intobj = 123321
         self.helper(intobj)
-        self.helper3(intobj, simple=True,
-                     check_non_sharing=support.check_impl_detail())
+        self.helper3(intobj, simple=True)
 
     def testFloat(self):
         floatobj = 1.2345
         self.helper(floatobj)
-        self.helper3(floatobj,
-                     check_non_sharing=support.check_impl_detail())
+        self.helper3(floatobj)
 
     def testStr(self):
         strobj = "abcde"*3
@@ -485,7 +467,7 @@ class InstancingTestCase(unittest.TestCase, HelperMixin):
         if __file__.endswith(".py"):
             code = compile(code, __file__, "exec")
         self.helper(code)
-        self.helper3(code, check_sharing=support.check_impl_detail())
+        self.helper3(code)
 
     def testRecursion(self):
         obj = 1.2345

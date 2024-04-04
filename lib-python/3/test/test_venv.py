@@ -57,7 +57,7 @@ class BaseTest(unittest.TestCase):
             self.include = 'Include'
         else:
             self.bindir = 'bin'
-            self.lib = ('lib', 'pypy%d.%d' % sys.version_info[:2])
+            self.lib = ('lib', 'python%d.%d' % sys.version_info[:2])
             self.include = 'include'
         executable = sys._base_executable
         self.exe = os.path.split(executable)[-1]
@@ -209,8 +209,8 @@ class BasicTest(BaseTest):
             ('bin',),
             ('include',),
             ('lib',),
-            ('lib', 'pypy%d.%d' % sys.version_info[:2]),
-            ('lib', 'pypy%d.%d' % sys.version_info[:2], 'site-packages'),
+            ('lib', 'python%d.%d' % sys.version_info[:2]),
+            ('lib', 'python%d.%d' % sys.version_info[:2], 'site-packages'),
         )
 
     def create_contents(self, paths, filename):

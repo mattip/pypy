@@ -97,7 +97,6 @@ class Callbacks(unittest.TestCase):
         self.check_type(c_char_p, "abc")
         self.check_type(c_char_p, "def")
 
-    @support.refcount_test
     def test_pyobject(self):
         o = ()
         from sys import getrefcount as grc

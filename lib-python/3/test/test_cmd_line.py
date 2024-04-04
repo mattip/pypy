@@ -471,7 +471,6 @@ class CmdLineTest(unittest.TestCase):
     def test_no_std_streams(self):
         self._test_no_stdio(['stdin', 'stdout', 'stderr'])
 
-    @support.impl_detail('no hash randomization on PyPy', pypy=False)
     def test_hash_randomization(self):
         # Verify that -R enables hash randomization:
         self.verify_valid_flag('-R')
@@ -669,8 +668,7 @@ class CmdLineTest(unittest.TestCase):
 
         # Memory allocator debug hooks
         try:
-            # import _testcapi # Change for PyPy
-            from _testcapi import pymem_getallocatorsname
+            import _testcapi
         except ImportError:
             pass
         else:
@@ -734,7 +732,6 @@ class CmdLineTest(unittest.TestCase):
                                           use_pywarning=True)
         self.assertEqual(out, expected_filters)
 
-    @support.impl_detail('no malloc strategies in PyPy', pypy=False)
     def check_pythonmalloc(self, env_var, name):
         code = 'import _testcapi; print(_testcapi.pymem_getallocatorsname())'
         env = dict(os.environ)
@@ -871,7 +868,6 @@ class IgnoreEnvironmentTest(unittest.TestCase):
         self.run_ignoring_vars("'{}' not in sys.path".format(path),
                                PYTHONPATH=path)
 
-    @support.impl_detail('no hash randomization on PyPy', pypy=False)
     def test_ignore_PYTHONHASHSEED(self):
         self.run_ignoring_vars("sys.flags.hash_randomization == 1",
                                PYTHONHASHSEED="0")

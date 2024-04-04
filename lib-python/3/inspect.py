@@ -50,10 +50,6 @@ import functools
 import builtins
 from operator import attrgetter
 from collections import namedtuple, OrderedDict
-try:
-    from cpyext import is_cpyext_function as _is_cpyext_function
-except ImportError:
-    _is_cpyext_function = lambda obj: False
 
 # Create constants for the compiler flags in Include/code.h
 # We try to get them from dis to avoid duplication
@@ -294,7 +290,7 @@ def isbuiltin(object):
         __doc__         documentation string
         __name__        original name of this function or method
         __self__        instance to which a method is bound, or None"""
-    return isinstance(object, types.BuiltinFunctionType) or _is_cpyext_function(object)
+    return isinstance(object, types.BuiltinFunctionType)
 
 def isroutine(object):
     """Return true if the object is any kind of function or method."""
@@ -1076,13 +1072,7 @@ def getargs(co):
     appended. 'varargs' and 'varkw' are the names of the * and **
     arguments or None."""
     if not iscode(co):
-        if hasattr(len, '__code__') and type(co) is type(len.__code__):
-            # PyPy extension: built-in function objects have a __code__
-            # too.  There is no co_code on it, but co_argcount and
-            # co_varnames and co_flags are present.
-            pass
-        else:
-            raise TypeError('{!r} is not a code object'.format(co))
+        raise TypeError('{!r} is not a code object'.format(co))
 
     names = co.co_varnames
     nargs = co.co_argcount
@@ -1600,23 +1590,17 @@ def _is_type(obj):
         return False
     return True
 
-_dict_attr = type.__dict__["__dict__"]
-if hasattr(_dict_attr, "__objclass__"):
-    _objclass_check = lambda d, entry: d.__objclass__ is entry
-else:
-    # PyPy __dict__ descriptors are 'generic' and lack __objclass__
-    _objclass_check = lambda d, entry: not hasattr(d, "__objclass__")
-
 def _shadowed_dict(klass):
+    dict_attr = type.__dict__["__dict__"]
     for entry in _static_getmro(klass):
         try:
-            class_dict = _dict_attr.__get__(entry)["__dict__"]
+            class_dict = dict_attr.__get__(entry)["__dict__"]
         except KeyError:
             pass
         else:
             if not (type(class_dict) is types.GetSetDescriptorType and
                     class_dict.__name__ == "__dict__" and
-                    _objclass_check(class_dict, entry)):
+                    class_dict.__objclass__ is entry):
                 return class_dict
     return _sentinel
 
@@ -1760,7 +1744,6 @@ _NonUserDefinedCallables = (_WrapperDescriptor,
                             _ClassMethodWrapper,
                             types.BuiltinFunctionType)
 
-_builtin_code_type = type(dict.update.__code__)
 
 def _signature_get_user_defined_method(cls, method_name):
     """Private helper. Checks if ``cls`` has an attribute
@@ -1772,14 +1755,7 @@ def _signature_get_user_defined_method(cls, method_name):
     except AttributeError:
         return
     else:
-        # The particular check cpython uses to determine if a particular method
-        # is a builtin or not doesn't work on pypy. The following code is
-        # pypy-specific.
-        try:
-            code = meth.__code__
-        except AttributeError:
-            return
-        if not isinstance(code, _builtin_code_type):
+        if not isinstance(meth, _NonUserDefinedCallables):
             # Once '__signature__' will be added to 'C'-level
             # callables, this check won't be necessary
             return meth
@@ -1917,7 +1893,7 @@ def _signature_is_functionlike(obj):
     kwdefaults = getattr(obj, '__kwdefaults__', _void) # ... and not None here
     annotations = getattr(obj, '__annotations__', None)
 
-    return (isinstance(code, (types.CodeType, _builtin_code_type)) and
+    return (isinstance(code, types.CodeType) and
             isinstance(name, str) and
             (defaults is None or isinstance(defaults, tuple)) and
             (kwdefaults is None or isinstance(kwdefaults, dict)) and
@@ -2173,16 +2149,6 @@ def _signature_from_builtin(cls, func, skip_bound_arg=True):
     return _signature_fromstr(cls, func, s, skip_bound_arg)
 
 
-class _NoValue:
-    """Class of a marker object for PyPy only, used as the defaults for
-    built-in functions when there is really no Python object that could
-    be used."""
-    __slots__ = ()
-    def __repr__(self):
-        return '<no value>'
-_no_value = _NoValue()
-
-
 def _signature_from_function(cls, func, skip_bound_arg=True):
     """Private helper: constructs Signature for the given python function."""
 
@@ -2216,10 +2182,7 @@ def _signature_from_function(cls, func, skip_bound_arg=True):
     if defaults:
         pos_default_count = len(defaults)
     else:
-        # PyPy extension, for built-in functions that take optional
-        # arguments but without any Python object to use as default.
-        pos_default_count = getattr(func, '__defaults_count__', 0)
-        defaults = [_no_value] * pos_default_count
+        pos_default_count = 0
 
     parameters = []
 
@@ -2381,16 +2344,8 @@ def _signature_from_callable(obj, *,
             sig = _get_signature_of(call)
         else:
             factory_method = None
-            # pypy specific logic: in pypy, a lot of builtin functions have
-            # sensible signatures. therefore we don't call
-            # _signature_get_user_defined_method, but just use getattr and
-            # exclude object/type new/init (handled below)
-            new = getattr(obj, '__new__', None)
-            if new is object.__new__ or new is type.__new__:
-                new = None
-            init = getattr(obj, '__init__', None)
-            if init is object.__init__ or init is type.__init__:
-                init = None
+            new = _signature_get_user_defined_method(obj, '__new__')
+            init = _signature_get_user_defined_method(obj, '__init__')
             # Now we check if the 'obj' class has an own '__new__' method
             if '__new__' in obj.__dict__:
                 factory_method = new

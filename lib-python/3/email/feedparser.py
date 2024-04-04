@@ -37,7 +37,6 @@ NLCRE_crack = re.compile(r'(\r\n|\r|\n)')
 headerRE = re.compile(r'^(From |[\041-\071\073-\176]*:|[\t ])')
 EMPTYSTRING = ''
 NL = '\n'
-boundaryend_re = re.compile(r'(?P<end>--)?(?P<ws>[ \t]*)(?P<linesep>\r\n|\r|\n)?$')
 
 NeedMoreData = object()
 
@@ -330,14 +329,9 @@ class FeedParser:
             # this onto the input stream until we've scanned past the
             # preamble.
             separator = '--' + boundary
-            # PyPy difference: don't compile a new regular expression for every
-            # single message, instead just use str.startswith and a generic re
-            # this prevents the JIT compiling more and more traces for all the
-            # different (random) boundaries of messages
-            def boundarymatch(line):
-                if not line.startswith(separator):
-                    return None
-                return boundaryend_re.match(line, len(separator))
+            boundaryre = re.compile(
+                '(?P<sep>' + re.escape(separator) +
+                r')(?P<end>--)?(?P<ws>[ \t]*)(?P<linesep>\r\n|\r|\n)?$')
             capturing_preamble = True
             preamble = []
             linesep = False
@@ -349,7 +343,7 @@ class FeedParser:
                     continue
                 if line == '':
                     break
-                mo = boundarymatch(line)
+                mo = boundaryre.match(line)
                 if mo:
                     # If we're looking at the end boundary, we're done with
                     # this multipart.  If there was a newline at the end of
@@ -381,13 +375,13 @@ class FeedParser:
                         if line is NeedMoreData:
                             yield NeedMoreData
                             continue
-                        mo = boundarymatch(line)
+                        mo = boundaryre.match(line)
                         if not mo:
                             self._input.unreadline(line)
                             break
                     # Recurse to parse this subpart; the input stream points
                     # at the subpart's first line.
-                    self._input.push_eof_matcher(boundarymatch)
+                    self._input.push_eof_matcher(boundaryre.match)
                     for retval in self._parsegen():
                         if retval is NeedMoreData:
                             yield NeedMoreData

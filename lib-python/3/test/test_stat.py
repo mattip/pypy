@@ -2,7 +2,6 @@ import unittest
 import os
 import socket
 import sys
-from test.support import check_impl_detail
 from test.support import socket_helper
 from test.support import TESTFN, import_fresh_module
 
@@ -229,8 +228,6 @@ class TestFilemode:
             self.assertEqual(value, modvalue, key)
 
 
-@unittest.skipIf(check_impl_detail(pypy=True),
-                 "No _stat module on PyPy")
 class TestFilemodeCStat(TestFilemode, unittest.TestCase):
     statmod = c_stat
 

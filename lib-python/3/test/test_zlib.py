@@ -164,7 +164,6 @@ class CompressTestCase(BaseCompressTestCase, unittest.TestCase):
         x = zlib.compress(HAMLET_SCENE)
         self.assertEqual(zlib.decompress(x), HAMLET_SCENE)
 
-    @support.cpython_only
     def test_keywords(self):
         x = zlib.compress(HAMLET_SCENE, level=3)
         self.assertEqual(zlib.decompress(x), HAMLET_SCENE)
@@ -245,7 +244,6 @@ class CompressObjectTestCase(BaseCompressTestCase, unittest.TestCase):
             self.assertIsInstance(dco.unconsumed_tail, bytes)
             self.assertIsInstance(dco.unused_data, bytes)
 
-    @support.cpython_only
     def test_keywords(self):
         level = 2
         method = zlib.DEFLATED
@@ -413,8 +411,6 @@ class CompressObjectTestCase(BaseCompressTestCase, unittest.TestCase):
         # Sizes up to sys.maxsize should be accepted, although zlib is
         # internally limited to expressing sizes with unsigned int
         data = HAMLET_SCENE * 10
-        if len(data) < zlib.DEF_BUF_SIZE:
-            data = HAMLET_SCENE * 20
         self.assertGreater(len(data), zlib.DEF_BUF_SIZE)
         compressed = zlib.compress(data, 1)
         dco = zlib.decompressobj()

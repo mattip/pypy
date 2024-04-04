@@ -12,12 +12,7 @@ except ImportError:
     from _operator import _compare_digest as compare_digest
 else:
     _openssl_md_meths = frozenset(_hashopenssl.openssl_md_meth_names)
-    # pypy difference: we have a _hashlib, but it does not have a
-    # compare_digest
-    if hasattr(_hashopenssl, "compare_digest"):
-        compare_digest = _hashopenssl.compare_digest
-    else:
-        from _operator import _compare_digest as compare_digest
+    compare_digest = _hashopenssl.compare_digest
 import hashlib as _hashlib
 
 trans_5C = bytes((x ^ 0x5C) for x in range(256))
@@ -184,8 +179,7 @@ def digest(key, msg, digest):
             A hashlib constructor returning a new hash object. *OR*
             A module supporting PEP 247.
     """
-    if (False and # PyPy does not implement this shortcut yet
-            _hashopenssl is not None and
+    if (_hashopenssl is not None and
             isinstance(digest, str) and digest in _openssl_md_meths):
         return _hashopenssl.hmac_digest(key, msg, digest)
 

@@ -10,8 +10,7 @@ import unittest
 from distutils import sysconfig
 from distutils.ccompiler import get_default_compiler
 from distutils.tests import support
-from test.support import (TESTFN, run_unittest, check_warnings, swap_item,
-    cpython_only)
+from test.support import TESTFN, run_unittest, check_warnings, swap_item
 
 class SysconfigTestCase(support.EnvironGuard, unittest.TestCase):
     def setUp(self):
@@ -46,7 +45,6 @@ class SysconfigTestCase(support.EnvironGuard, unittest.TestCase):
         self.assertIsInstance(cvars, dict)
         self.assertTrue(cvars)
 
-    @cpython_only
     def test_srcdir(self):
         # See Issues #15322, #15364.
         srcdir = sysconfig.get_config_var('srcdir')

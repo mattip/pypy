@@ -770,21 +770,6 @@ class Popen(object):
         # finished a waitpid() call.
         self._waitpid_lock = threading.Lock()
 
-        # --- PyPy hack, see _pypy_install_libs_after_virtualenv() ---
-        # match arguments passed by different versions of virtualenv
-        if type(args) is list and args[1:] in (
-            ['-c', 'import sys; print(sys.prefix)'],        # 1.6 10ba3f3c
-            ['-c', "\nimport sys\nprefix = sys.prefix\n"    # 1.7 0e9342ce
-             "if sys.version_info[0] == 3:\n"
-             "    prefix = prefix.encode('utf8')\n"
-             "if hasattr(sys.stdout, 'detach'):\n"
-             "    sys.stdout = sys.stdout.detach()\n"
-             "elif hasattr(sys.stdout, 'buffer'):\n"
-             "    sys.stdout = sys.stdout.buffer\nsys.stdout.write(prefix)\n"],
-            ['-c', 'import sys;out=sys.stdout;getattr(out, "buffer"'
-             ', out).write(sys.prefix.encode("utf-8"))']):  # 1.7.2 a9454bce
-            _pypy_install_libs_after_virtualenv(args[0])
-
         self._input = None
         self._communication_started = False
         if bufsize is None:
@@ -1263,18 +1248,15 @@ class Popen(object):
             c2pread, c2pwrite = -1, -1
             errread, errwrite = -1, -1
 
-            ispread = False
             if stdin is None:
                 p2cread = _winapi.GetStdHandle(_winapi.STD_INPUT_HANDLE)
                 if p2cread is None:
                     p2cread, _ = _winapi.CreatePipe(None, 0)
                     p2cread = Handle(p2cread)
                     _winapi.CloseHandle(_)
-                    ispread = True
             elif stdin == PIPE:
                 p2cread, p2cwrite = _winapi.CreatePipe(None, 0)
                 p2cread, p2cwrite = Handle(p2cread), Handle(p2cwrite)
-                ispread = True
             elif stdin == DEVNULL:
                 p2cread = msvcrt.get_osfhandle(self._get_devnull())
             elif isinstance(stdin, int):
@@ -1282,20 +1264,17 @@ class Popen(object):
             else:
                 # Assuming file-like object
                 p2cread = msvcrt.get_osfhandle(stdin.fileno())
-            p2cread = self._make_inheritable(p2cread, ispread)
+            p2cread = self._make_inheritable(p2cread)
 
-            ispwrite = False
             if stdout is None:
                 c2pwrite = _winapi.GetStdHandle(_winapi.STD_OUTPUT_HANDLE)
                 if c2pwrite is None:
                     _, c2pwrite = _winapi.CreatePipe(None, 0)
                     c2pwrite = Handle(c2pwrite)
                     _winapi.CloseHandle(_)
-                    ispwrite = True
             elif stdout == PIPE:
                 c2pread, c2pwrite = _winapi.CreatePipe(None, 0)
                 c2pread, c2pwrite = Handle(c2pread), Handle(c2pwrite)
-                ispwrite = True
             elif stdout == DEVNULL:
                 c2pwrite = msvcrt.get_osfhandle(self._get_devnull())
             elif isinstance(stdout, int):
@@ -1303,20 +1282,17 @@ class Popen(object):
             else:
                 # Assuming file-like object
                 c2pwrite = msvcrt.get_osfhandle(stdout.fileno())
-            c2pwrite = self._make_inheritable(c2pwrite, ispwrite)
+            c2pwrite = self._make_inheritable(c2pwrite)
 
-            ispwrite = False
             if stderr is None:
                 errwrite = _winapi.GetStdHandle(_winapi.STD_ERROR_HANDLE)
                 if errwrite is None:
                     _, errwrite = _winapi.CreatePipe(None, 0)
                     errwrite = Handle(errwrite)
                     _winapi.CloseHandle(_)
-                    ispwrite = True
             elif stderr == PIPE:
                 errread, errwrite = _winapi.CreatePipe(None, 0)
                 errread, errwrite = Handle(errread), Handle(errwrite)
-                ispwrite = True
             elif stderr == STDOUT:
                 errwrite = c2pwrite
             elif stderr == DEVNULL:
@@ -1326,23 +1302,19 @@ class Popen(object):
             else:
                 # Assuming file-like object
                 errwrite = msvcrt.get_osfhandle(stderr.fileno())
-            errwrite = self._make_inheritable(errwrite, ispwrite)
+            errwrite = self._make_inheritable(errwrite)
 
             return (p2cread, p2cwrite,
                     c2pread, c2pwrite,
                     errread, errwrite)
 
 
-        def _make_inheritable(self, handle, close=False):
+        def _make_inheritable(self, handle):
             """Return a duplicate of handle, which is inheritable"""
             h = _winapi.DuplicateHandle(
                 _winapi.GetCurrentProcess(), handle,
                 _winapi.GetCurrentProcess(), 0, 1,
                 _winapi.DUPLICATE_SAME_ACCESS)
-            # PyPy: If the initial handle was obtained with CreatePipe,
-            # close it.
-            if close:
-                handle.Close()
             return Handle(h)
 
 
@@ -2122,30 +2094,3 @@ class Popen(object):
             """Kill the process with SIGKILL
             """
             self.send_signal(signal.SIGKILL)
-
-
-def _pypy_install_libs_after_virtualenv(target_executable):
-    # https://bitbucket.org/pypy/pypy/issue/1922/future-proofing-virtualenv
-    #
-    # We have --shared on by default.  This means the pypy binary
-    # depends on the 'libpypy3-c.so' shared library to be able to run.
-    # The virtualenv code existing at the time did not account for this
-    # and would break.  Try to detect that we're running under such a
-    # virtualenv in the "Testing executable with" phase and copy the
-    # library ourselves.
-    caller = sys._getframe(2)
-    if ('virtualenv_version' in caller.f_globals and
-                  'copyfile' in caller.f_globals):
-        dest_dir = sys.pypy_resolvedirof(target_executable)
-        src_dir = sys.pypy_resolvedirof(sys.executable)
-        for libname in ['libpypy3-c.so', 'libpypy3-c.dylib', 'libpypy3-c.dll']:
-            dest_library = os.path.join(dest_dir, libname)
-            src_library = os.path.join(src_dir, libname)
-            if os.path.exists(src_library):
-                caller.f_globals['copyfile'](src_library, dest_library)
-        src_lib = os.path.join(src_dir, '../lib')
-        if os.path.exists(src_lib):
-            # portable build
-            import shutil
-            shutil.copytree(src_lib, os.path.join(dest_dir, '../lib'))
-

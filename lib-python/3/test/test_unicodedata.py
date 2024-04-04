@@ -11,7 +11,7 @@ from http.client import HTTPException
 import sys
 import unicodedata
 import unittest
-from test.support import open_urlresource, requires_resource, script_helper, impl_detail
+from test.support import open_urlresource, requires_resource, script_helper
 
 
 class UnicodeMethodsTest(unittest.TestCase):
@@ -225,7 +225,6 @@ class UnicodeFunctionsTest(UnicodeDatabaseTest):
 
 class UnicodeMiscTest(UnicodeDatabaseTest):
 
-    @impl_detail("pypy's unicodedata module is always available", pypy=False)
     def test_failed_import_during_compiling(self):
         # Issue 4367
         # Decoding \N escapes requires the unicodedata module. If it can't be

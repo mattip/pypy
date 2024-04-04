@@ -13,6 +13,7 @@ import itertools
 import operator
 import os
 import pickle
+import pyexpat
 import sys
 import textwrap
 import types
@@ -24,7 +25,6 @@ from functools import partial
 from itertools import product, islice
 from test import support
 from test.support import TESTFN, findfile, import_fresh_module, gc_collect, swap_attr, swap_item
-from test.support import impl_detail  # PyPy only
 
 # pyET is the pure-Python implementation.
 #
@@ -102,6 +102,7 @@ EXTERNAL_ENTITY_XML = """\
 ]>
 <document>&entity;</document>
 """
+
 
 def checkwarnings(*filters, quiet=False):
     def decorator(test):
@@ -330,9 +331,7 @@ class ElementTreeTest(unittest.TestCase):
         self.serialize_check(element, '<tag key="value" />') # 5
         with self.assertRaises(ValueError) as cm:
             element.remove(subelement)
-        # PyPy: different error message
-        # self.assertEqual(str(cm.exception), 'list.remove(x): x not in list')
-        self.assertRegex(str(cm.exception), 'list.remove(.*): .* not in list')
+        self.assertEqual(str(cm.exception), 'list.remove(x): x not in list')
         self.serialize_check(element, '<tag key="value" />') # 6
         element[0:0] = [subelement, subelement, subelement]
         self.serialize_check(element[1], '<subtag />')
@@ -1371,12 +1370,14 @@ class ElementTreeTest(unittest.TestCase):
 
 class XMLPullParserTest(unittest.TestCase):
 
-    def _feed(self, parser, data, chunk_size=None):
+    def _feed(self, parser, data, chunk_size=None, flush=False):
         if chunk_size is None:
             parser.feed(data)
         else:
             for i in range(0, len(data), chunk_size):
                 parser.feed(data[i:i+chunk_size])
+        if flush:
+            parser.flush()
 
     def assert_events(self, parser, expected, max_events=None):
         self.assertEqual(
@@ -1394,28 +1395,35 @@ class XMLPullParserTest(unittest.TestCase):
         self.assertEqual([(action, elem.tag) for action, elem in events],
                          expected)
 
-    def test_simple_xml(self):
-        for chunk_size in (None, 1, 5):
-            with self.subTest(chunk_size=chunk_size):
-                parser = ET.XMLPullParser()
-                self.assert_event_tags(parser, [])
-                self._feed(parser, "<!-- comment -->\n", chunk_size)
-                self.assert_event_tags(parser, [])
-                self._feed(parser,
-                           "<root>\n  <element key='value'>text</element",
-                           chunk_size)
-                self.assert_event_tags(parser, [])
-                self._feed(parser, ">\n", chunk_size)
-                self.assert_event_tags(parser, [('end', 'element')])
-                self._feed(parser, "<element>text</element>tail\n", chunk_size)
-                self._feed(parser, "<empty-element/>\n", chunk_size)
-                self.assert_event_tags(parser, [
-                    ('end', 'element'),
-                    ('end', 'empty-element'),
-                    ])
-                self._feed(parser, "</root>\n", chunk_size)
-                self.assert_event_tags(parser, [('end', 'root')])
-                self.assertIsNone(parser.close())
+    def test_simple_xml(self, chunk_size=None, flush=False):
+        parser = ET.XMLPullParser()
+        self.assert_event_tags(parser, [])
+        self._feed(parser, "<!-- comment -->\n", chunk_size, flush)
+        self.assert_event_tags(parser, [])
+        self._feed(parser,
+                   "<root>\n  <element key='value'>text</element",
+                   chunk_size, flush)
+        self.assert_event_tags(parser, [])
+        self._feed(parser, ">\n", chunk_size, flush)
+        self.assert_event_tags(parser, [('end', 'element')])
+        self._feed(parser, "<element>text</element>tail\n", chunk_size, flush)
+        self._feed(parser, "<empty-element/>\n", chunk_size, flush)
+        self.assert_event_tags(parser, [
+            ('end', 'element'),
+            ('end', 'empty-element'),
+            ])
+        self._feed(parser, "</root>\n", chunk_size, flush)
+        self.assert_event_tags(parser, [('end', 'root')])
+        self.assertIsNone(parser.close())
+
+    def test_simple_xml_chunk_1(self):
+        self.test_simple_xml(chunk_size=1, flush=True)
+
+    def test_simple_xml_chunk_5(self):
+        self.test_simple_xml(chunk_size=5, flush=True)
+
+    def test_simple_xml_chunk_22(self):
+        self.test_simple_xml(chunk_size=22)
 
     def test_feed_while_iterating(self):
         parser = ET.XMLPullParser()
@@ -1611,6 +1619,57 @@ class XMLPullParserTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             ET.XMLPullParser(events=('start', 'end', 'bogus'))
 
+    def test_flush_reparse_deferral_enabled(self):
+        if pyexpat.version_info < (2, 6, 0):
+            self.skipTest(f'Expat {pyexpat.version_info} does not '
+                          'support reparse deferral')
+
+        parser = ET.XMLPullParser(events=('start', 'end'))
+
+        for chunk in ("<doc", ">"):
+            parser.feed(chunk)
+
+        self.assert_event_tags(parser, [])  # i.e. no elements started
+        if ET is pyET:
+            self.assertTrue(parser._parser._parser.GetReparseDeferralEnabled())
+
+        parser.flush()
+
+        self.assert_event_tags(parser, [('start', 'doc')])
+        if ET is pyET:
+            self.assertTrue(parser._parser._parser.GetReparseDeferralEnabled())
+
+        parser.feed("</doc>")
+        parser.close()
+
+        self.assert_event_tags(parser, [('end', 'doc')])
+
+    def test_flush_reparse_deferral_disabled(self):
+        parser = ET.XMLPullParser(events=('start', 'end'))
+
+        for chunk in ("<doc", ">"):
+            parser.feed(chunk)
+
+        if pyexpat.version_info >= (2, 6, 0):
+            if not ET is pyET:
+                self.skipTest(f'XMLParser.(Get|Set)ReparseDeferralEnabled '
+                              'methods not available in C')
+            parser._parser._parser.SetReparseDeferralEnabled(False)
+
+        self.assert_event_tags(parser, [])  # i.e. no elements started
+        if ET is pyET:
+            self.assertFalse(parser._parser._parser.GetReparseDeferralEnabled())
+
+        parser.flush()
+
+        self.assert_event_tags(parser, [('start', 'doc')])
+        if ET is pyET:
+            self.assertFalse(parser._parser._parser.GetReparseDeferralEnabled())
+
+        parser.feed("</doc>")
+        parser.close()
+
+        self.assert_event_tags(parser, [('end', 'doc')])
 
 #
 # xinclude tests (samples from appendix C of the xinclude specification)
@@ -2048,7 +2107,6 @@ class BugsTest(unittest.TestCase):
         self.assertEqual(t.find('.//paragraph').text,
             'A new cultivar of Begonia plant named \u2018BCT9801BEG\u2019.')
 
-    @impl_detail
     @unittest.skipIf(sys.gettrace(), "Skips under coverage.")
     def test_bug_xmltoolkit63(self):
         # Check reference leak.

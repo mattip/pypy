@@ -173,7 +173,6 @@ class GeneralTest(unittest.TestCase):
 @support.cpython_only
 class SubinterpreterTest(unittest.TestCase):
 
-    @support.cpython_only
     def test_callbacks_leak(self):
         # This test shows a leak in refleak mode if atexit doesn't
         # take care to free callbacks in its per-subinterpreter module
@@ -190,7 +189,6 @@ class SubinterpreterTest(unittest.TestCase):
         self.assertEqual(ret, 0)
         self.assertEqual(atexit._ncallbacks(), n)
 
-    @support.cpython_only
     def test_callbacks_leak_refcycle(self):
         # Similar to the above, but with a refcycle through the atexit
         # module.

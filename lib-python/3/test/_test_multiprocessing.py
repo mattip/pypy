@@ -613,8 +613,7 @@ class _TestProcess(BaseTestCase):
         del c
         p.start()
         p.join()
-        for i in range(3):
-            gc.collect()
+        gc.collect()  # For PyPy or other GCs.
         self.assertIs(wr(), None)
         self.assertEqual(q.get(), 5)
         close_queue(q)
@@ -2671,8 +2670,7 @@ class _TestPool(BaseTestCase):
         self.pool.map(identity, objs)
 
         del objs
-        for i in range(3):
-            gc.collect()
+        gc.collect()  # For PyPy or other GCs.
         time.sleep(DELTA)  # let threaded cleanup code run
         self.assertEqual(set(wr() for wr in refs), {None})
         # With a process pool, copies of the objects are returned, check
@@ -2761,9 +2759,6 @@ class _TestPoolWorkerLifetime(BaseTestCase):
     ALLOWED_TYPES = ('processes', )
 
     def test_pool_worker_lifetime(self):
-        sm = multiprocessing.get_start_method()
-        if sm == 'fork' and sys.implementation.name == 'pypy':
-            self.skipTest("race condition on PyPy")
         p = multiprocessing.Pool(3, maxtasksperchild=10)
         self.assertEqual(3, len(p._pool))
         origworkerpids = [w.pid for w in p._pool]
@@ -2972,8 +2967,7 @@ class _TestRemoteManager(BaseTestCase):
 
         # Because we are using xmlrpclib for serialization instead of
         # pickle this will cause a serialization error.
-        # Changed on PyPy: passing functions to xmlrpc is broken
-        #self.assertRaises(Exception, queue.put, time.sleep)
+        self.assertRaises(Exception, queue.put, time.sleep)
 
         # Make queue finalizer run before the server is stopped
         del queue
@@ -3671,15 +3665,12 @@ class _TestHeap(BaseTestCase):
         while blocks:
             blocks.pop()
 
-        support.gc_collect() # for PyPy and other GCs
-
         self.assertEqual(heap._n_frees, heap._n_mallocs)
         self.assertEqual(len(heap._pending_free_blocks), 0)
         self.assertEqual(len(heap._arenas), 0)
         self.assertEqual(len(heap._allocated_blocks), 0, heap._allocated_blocks)
         self.assertEqual(len(heap._len_to_seq), 0)
 
-    @test.support.cpython_only
     def test_free_from_gc(self):
         # Check that freeing of blocks by the garbage collector doesn't deadlock
         # (issue #12352).
@@ -4198,8 +4189,7 @@ class _TestFinalize(BaseTestCase):
         util._finalizer_registry.clear()
 
     def tearDown(self):
-        for i in range(3):
-            gc.collect()
+        gc.collect()  # For PyPy or other GCs.
         self.assertFalse(util._finalizer_registry)
         util._finalizer_registry.update(self.registry_backup)
 
@@ -4254,7 +4244,6 @@ class _TestFinalize(BaseTestCase):
         result = [obj for obj in iter(conn.recv, 'STOP')]
         self.assertEqual(result, ['a', 'b', 'd10', 'd03', 'd02', 'd01', 'e'])
 
-    @test.support.cpython_only
     def test_thread_safety(self):
         # bpo-24484: _run_finalizers() should be thread-safe
         def cb():

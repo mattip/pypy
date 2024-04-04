@@ -8,7 +8,6 @@ import struct
 import collections
 import itertools
 import gc
-import sys
 
 
 class FunctionCalls(unittest.TestCase):
@@ -549,7 +548,6 @@ def testfunction_kw(self, *, kw):
 
 class TestPEP590(unittest.TestCase):
 
-    @cpython_only
     def test_method_descriptor_flag(self):
         import functools
         cached = functools.lru_cache(1)(testfunction)
@@ -569,7 +567,6 @@ class TestPEP590(unittest.TestCase):
             pass
         self.assertFalse(MethodDescriptorHeap.__flags__ & Py_TPFLAGS_METHOD_DESCRIPTOR)
 
-    @cpython_only
     def test_vectorcall_flag(self):
         self.assertTrue(_testcapi.MethodDescriptorBase.__flags__ & Py_TPFLAGS_HAVE_VECTORCALL)
         self.assertTrue(_testcapi.MethodDescriptorDerived.__flags__ & Py_TPFLAGS_HAVE_VECTORCALL)
@@ -589,11 +586,7 @@ class TestPEP590(unittest.TestCase):
         # additionally that no new tuple is created for this call.
         args = tuple(range(5))
         f = _testcapi.MethodDescriptorNopGet()
-        if sys.implementation.name == 'pypy':
-            # processing via cpyext creates a new tuple
-            self.assertEqual(f(*args), args)
-        else:
-            self.assertIs(f(*args), args)
+        self.assertIs(f(*args), args)
 
     def test_vectorcall(self):
         # Test a bunch of different ways to call objects:

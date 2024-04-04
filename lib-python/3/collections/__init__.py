@@ -51,11 +51,6 @@ try:
 except ImportError:
     pass
 
-try:
-    from __pypy__ import newdict
-except ImportError:
-    newdict = lambda _: {}
-
 
 def __getattr__(name):
     # For backwards compatibility, continue to make the collections ABCs
@@ -427,10 +422,11 @@ def namedtuple(typename, field_names, *, rename=False, defaults=None, module=Non
 
     # Create all the named tuple methods to be added to the class namespace
 
-    namespace = newdict('module')
-    namespace['_tuple_new'] = tuple_new
-    namespace['__builtins__'] = {}
-    namespace['__name__'] = f'namedtuple_{typename}'
+    namespace = {
+        '_tuple_new': tuple_new,
+        '__builtins__': {},
+        '__name__': f'namedtuple_{typename}',
+    }
     code = f'lambda _cls, {arg_list}: _tuple_new(_cls, ({arg_list}))'
     __new__ = eval(code, namespace)
     __new__.__name__ = '__new__'
@@ -448,39 +444,12 @@ def namedtuple(typename, field_names, *, rename=False, defaults=None, module=Non
     _make.__func__.__doc__ = (f'Make a new {typename} object from a sequence '
                               'or iterable')
 
-    # PyPy modification (https://foss.heptapod.net/pypy/pypy/-/issues/3884)
-    # faster replace
+    def _replace(self, /, **kwds):
+        result = self._make(_map(kwds.pop, field_names, self))
+        if kwds:
+            raise ValueError(f'Got unexpected field names: {list(kwds)!r}')
+        return result
 
-    parameters = "\n".join(f"    {field}=_not_given," for field in field_names)
-    if field_names:
-        star = "    *,"
-    else:
-        star = ""
-    arguments = "\n".join(
-        f"            {field}=_self[{i}] if {field} is _not_given else {field},"
-        for i, field in enumerate(field_names)
-    )
-    code = f"""\
-_not_given = object()
-_type = type
-_ValueError = ValueError
-_list = list
-def _replace(
-    _self,
-    /,
-{star}
-{parameters}
-    **_kwargs,
-):
-    if _kwargs:
-        raise _ValueError(f"Got unexpected field names: {{_list(_kwargs)!r}}")
-    else:
-        return _type(_self)(
-{arguments}
-            )
-        """
-    exec(code, namespace)
-    _replace = namespace["_replace"]
     _replace.__doc__ = (f'Return a new {typename} object replacing specified '
                         'fields with new values')
 

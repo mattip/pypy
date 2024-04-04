@@ -14,7 +14,7 @@ import unittest
 import tempfile
 import shutil
 import contextlib
-is_pypy = support.check_impl_detail(pypy=True)
+
 # NOTE: There are some additional tests relating to interaction with
 #       zipimport in the test_zipimport_support test module.
 
@@ -680,8 +680,7 @@ plain ol' Python and is guaranteed to be available.
 
     >>> import builtins
     >>> tests = doctest.DocTestFinder().find(builtins)
-    >>> lo, hi = (430, 450) if is_pypy else (816, 836)
-    >>> lo < len(tests) < hi # approximate number of objects with docstrings
+    >>> 816 < len(tests) < 836 # approximate number of objects with docstrings
     True
     >>> real_tests = [t for t in tests if len(t.examples) > 0]
     >>> len(real_tests) # objects that actually have doctests

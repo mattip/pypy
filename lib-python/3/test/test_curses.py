@@ -6,8 +6,7 @@ import sys
 import tempfile
 import unittest
 
-from test.support import (requires, import_module, verbose, SaveSignals,
-        cpython_only)
+from test.support import requires, import_module, verbose, SaveSignals
 
 # Optionally test curses module.  This currently requires that the
 # 'curses' resource be given on the regrtest command line using the -u
@@ -1023,7 +1022,6 @@ class TestCurses(unittest.TestCase):
                                msg='userptr should fail since not set'):
             p.userptr()
 
-    @cpython_only
     @requires_curses_func('panel')
     def test_userptr_memory_leak(self):
         w = curses.newwin(10, 10)
@@ -1037,7 +1035,6 @@ class TestCurses(unittest.TestCase):
         self.assertEqual(sys.getrefcount(obj), nrefs,
                          "set_userptr leaked references")
 
-    @cpython_only
     @requires_curses_func('panel')
     def test_userptr_segfault(self):
         w = curses.newwin(10, 10)
@@ -1148,20 +1145,20 @@ class TestCurses(unittest.TestCase):
         # we will need to rewrite this test.
         try:
             signature = inspect.signature(stdscr.addch)
+            self.assertFalse(signature)
         except ValueError:
+            # not generating a signature is fine.
+            pass
 
-            # So.  No signature for addch.
-            # But Argument Clinic gave us a human-readable equivalent
-            # as the first line of the docstring.  So we parse that,
-            # and ensure that the parameters appear in the correct order.
-            # Since this is parsing output from Argument Clinic, we can
-            # be reasonably certain the generated parsing code will be
-            # correct too.
-            human_readable_signature = stdscr.addch.__doc__.split("\n")[0]
-            self.assertIn("[y, x,]", human_readable_signature)
-        else:
-            params = list(signature.parameters.keys())
-            self.assertTrue(params.index('y') < params.index('x'))
+        # So.  No signature for addch.
+        # But Argument Clinic gave us a human-readable equivalent
+        # as the first line of the docstring.  So we parse that,
+        # and ensure that the parameters appear in the correct order.
+        # Since this is parsing output from Argument Clinic, we can
+        # be reasonably certain the generated parsing code will be
+        # correct too.
+        human_readable_signature = stdscr.addch.__doc__.split("\n")[0]
+        self.assertIn("[y, x,]", human_readable_signature)
 
     @requires_curses_window_meth('resize')
     def test_issue13051(self):

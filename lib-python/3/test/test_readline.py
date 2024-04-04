@@ -128,8 +128,7 @@ class TestHistoryManipulation (unittest.TestCase):
 
 class TestReadline(unittest.TestCase):
 
-    @unittest.skipIf(getattr(readline, '_READLINE_VERSION', 0x0601) < 0x0601
-                     and not is_editline,
+    @unittest.skipIf(readline._READLINE_VERSION < 0x0601 and not is_editline,
                      "not supported in this library version")
     def test_init(self):
         # Issue #19884: Ensure that the ANSI sequence "\033[1034h" is not
@@ -158,9 +157,6 @@ print("History length:", readline.get_current_history_length())
         # end, so don't expect it in the output.
         self.assertIn(b"History length: 0", output)
 
-    @unittest.skipIf(not hasattr(readline,
-                                 'set_completion_display_matches_hook'),
-                     "function not reimplemented in pypy")
     def test_nonascii(self):
         loc = locale.setlocale(locale.LC_CTYPE, None)
         if loc in ('C', 'POSIX'):
@@ -249,7 +245,7 @@ print("history", ascii(readline.get_history_item(1)))
     #   See https://cnswww.cns.cwru.edu/php/chet/readline/CHANGES
     # - editline: history size is broken on OS X 10.11.6.
     #   Newer versions were not tested yet.
-    @unittest.skipIf(getattr(readline, "_READLINE_VERSION", 0x601) < 0x600,
+    @unittest.skipIf(readline._READLINE_VERSION < 0x600,
                      "this readline version does not support history-size")
     @unittest.skipIf(is_editline,
                      "editline history size configuration is broken")

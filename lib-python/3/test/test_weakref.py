@@ -77,7 +77,7 @@ class TestBase(unittest.TestCase):
 
 
 @contextlib.contextmanager
-def collect_in_thread(period=0.001):
+def collect_in_thread(period=0.0001):
     """
     Ensure GC collections happen in a different thread, at a high frequency.
     """
@@ -444,7 +444,8 @@ class ReferencesTestCase(TestBase):
                 return weakref.proxy(not_an_iterator)
         a = A()
 
-        with self.assertRaises(TypeError):
+        msg = "Weakref proxy referenced a non-iterator"
+        with self.assertRaisesRegex(TypeError, msg):
             list(a)
 
     def test_proxy_reversed(self):
@@ -799,11 +800,9 @@ class ReferencesTestCase(TestBase):
         gc.collect()
         self.assertEqual(alist, [])
 
-    @support.impl_detail(pypy=False)
     def test_gc_during_ref_creation(self):
         self.check_gc_during_creation(weakref.ref)
 
-    @support.impl_detail(pypy=False)
     def test_gc_during_proxy_creation(self):
         self.check_gc_during_creation(weakref.proxy)
 
@@ -1237,7 +1236,7 @@ class MappingTestCase(TestBase):
         # Keep an iterator alive
         it = dct.items()
         try:
-            print(next(it))
+            next(it)
         except StopIteration:
             pass
         del items
@@ -1245,11 +1244,7 @@ class MappingTestCase(TestBase):
         n1 = len(dct)
         del it
         gc.collect()
-        gc.collect()
-        print(list(dct.items()))
         n2 = len(dct)
-        print(len(dct))
-        print(weakref)
         # one item may be kept alive inside the iterator
         self.assertIn(n1, (0, 1))
         self.assertEqual(n2, 0)
@@ -1260,7 +1255,6 @@ class MappingTestCase(TestBase):
     def test_weak_valued_len_cycles(self):
         self.check_len_cycles(weakref.WeakValueDictionary, lambda k: (1, k))
 
-    @support.impl_detail(pypy=False)
     def check_len_race(self, dict_type, cons):
         # Extended sanity checks for len() in the face of cyclic collection
         self.addCleanup(gc.set_threshold, *gc.get_threshold())
@@ -1720,7 +1714,6 @@ class MappingTestCase(TestBase):
         self.assertIs(type(tmp4), weakref.WeakValueDictionary)
 
         del a
-        gc_collect()  # For PyPy or other GCs.
         self.assertNotIn(2, tmp1)
         self.assertNotIn(2, tmp2)
         self.assertNotIn(1, tmp3)
@@ -1773,7 +1766,6 @@ class MappingTestCase(TestBase):
         self.assertIs(type(tmp4), weakref.WeakKeyDictionary)
 
         del o1
-        gc_collect()  # For PyPy or other GCs.
         self.assertNotIn(4, tmp1.values())
         self.assertNotIn(4, tmp2.values())
         self.assertNotIn(1, tmp3.values())

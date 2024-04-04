@@ -1,4 +1,3 @@
-import test.support
 import codecs
 import html.entities
 import itertools
@@ -1125,8 +1124,6 @@ class CodecCallbackTest(unittest.TestCase):
             text = 'abc<def>ghi'*n
             text.translate(charmap)
 
-    # This test may be removed from CPython as well. see issue16577.
-    @test.support.impl_detail("PyPy does not have this restriction", pypy=False)
     def test_mutatingdecodehandler(self):
         baddata = [
             ("ascii", b"\xff"),

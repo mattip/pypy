@@ -1,8 +1,6 @@
 "Test the functionality of Python classes implementing operators."
 
-import sys
 import unittest
-from test import support
 
 
 testmeths = [
@@ -492,9 +490,6 @@ class ClassTests(unittest.TestCase):
         self.assertRaises(TypeError, hash, C2())
 
 
-    @unittest.skipIf(support.check_impl_detail(pypy=True) and
-                     sys.platform == 'win32',
-                     "XXX: https://bugs.pypy.org/issue1461")
     def testSFBug532646(self):
         # Test for SF bug 532646
 
@@ -598,15 +593,13 @@ class ClassTests(unittest.TestCase):
             return 'summa'
 
         name = str(b'__add__', 'ascii')  # shouldn't be optimized
-        if support.check_impl_detail():
-            self.assertIsNot(name, '__add__')  # not interned
+        self.assertIsNot(name, '__add__')  # not interned
         type.__setattr__(A, name, add)
         self.assertEqual(A() + 1, 'summa')
 
         name2 = str(b'__add__', 'ascii')
-        if support.check_impl_detail():
-            self.assertIsNot(name2, '__add__')
-            self.assertIsNot(name2, name)
+        self.assertIsNot(name2, '__add__')
+        self.assertIsNot(name2, name)
         type.__delattr__(A, name2)
         with self.assertRaises(TypeError):
             A() + 1

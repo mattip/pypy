@@ -1479,9 +1479,6 @@ class TestDate(HarmlessMixedComparison, unittest.TestCase):
         #check that this standard extension works
         t.strftime("%f")
 
-        #test that passing keyword arguments work
-        self.assertEqual(t.strftime(format=""), "")
-
     def test_strftime_trailing_percent(self):
         # bpo-35066: Make sure trailing '%' doesn't cause datetime's strftime to
         # complain. Different libcs have different handling of trailing
@@ -2095,9 +2092,6 @@ class TestDateTime(TestDate):
             self.assertEqual(dt.__format__(fmt), dt.strftime(fmt))
             self.assertEqual(a.__format__(fmt), dt.strftime(fmt))
             self.assertEqual(b.__format__(fmt), 'B')
-
-        #test that passing keyword arguments work
-        self.assertEqual(dt.strftime(format=""), "")
 
     def test_more_ctime(self):
         # Test fields that TestDate doesn't touch.
@@ -3344,9 +3338,6 @@ class TestTime(HarmlessMixedComparison, unittest.TestCase):
         self.assertEqual(t.strftime('%H %M %S %f'), "01 02 03 000004")
         # A naive object replaces %z and %Z with empty strings.
         self.assertEqual(t.strftime("'%z' '%Z'"), "'' ''")
-
-        #test that passing keyword arguments work
-        self.assertEqual(t.strftime(format=""), "")
 
         # bpo-34482: Check that surrogates don't cause a crash.
         try:
@@ -6004,8 +5995,7 @@ class IranTest(ZoneInfoTest):
 class CapiTest(unittest.TestCase):
     def setUp(self):
         # Since the C API is not present in the _Pure tests, skip all tests
-        # but run them on PyPy
-        if self.__class__.__name__.endswith('Pure') and sys.implementation.name != 'pypy':
+        if self.__class__.__name__.endswith('Pure'):
             self.skipTest('Not relevant in pure Python')
 
         # This *must* be called, and it must be called first, so until either

@@ -6,7 +6,7 @@ import inspect
 import pydoc
 import py_compile
 import keyword
-import pickle
+import _pickle
 import pkgutil
 import re
 import stat
@@ -25,7 +25,7 @@ from io import StringIO
 from collections import namedtuple
 from test.support.script_helper import assert_python_ok
 from test.support import (
-    TESTFN, rmtree, check_impl_detail,
+    TESTFN, rmtree,
     reap_children, reap_threads, captured_output, captured_stdout,
     captured_stderr, unlink, requires_docstrings
 )
@@ -140,23 +140,7 @@ FILE
 expected_text_data_docstrings = tuple('\n     |      ' + s if s else ''
                                       for s in expected_data_docstrings)
 
-if check_impl_detail(pypy=True):
-    # pydoc_mod.__builtins__ is always a module on PyPy (but a dict on
-    # CPython), hence an extra 'Modules' section
-    module_section = """
-<table width="100%%" cellspacing=0 cellpadding=2 border=0 summary="section">
-<tr bgcolor="#aa55cc">
-<td colspan=3 valign=bottom>&nbsp;<br>
-<font color="#ffffff" face="helvetica, arial"><big><strong>Modules</strong></big></font></td></tr>
-\x20\x20\x20\x20
-<tr><td bgcolor="#aa55cc"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
-<td width="100%%"><table width="100%%" summary="list"><tr><td width="25%%" valign=top><a href="builtins.html">builtins</a><br>
-</td><td width="25%%" valign=top></td><td width="25%%" valign=top></td><td width="25%%" valign=top></td></tr></table></td></tr></table><p>
-"""
-else:
-    module_section = ""
-
-expected_html_pattern = ("""
+expected_html_pattern = """
 <table width="100%%" cellspacing=0 cellpadding=2 border=0 summary="heading">
 <tr bgcolor="#7799ee">
 <td valign=bottom>&nbsp;<br>
@@ -164,16 +148,7 @@ expected_html_pattern = ("""
 ><td align=right valign=bottom
 ><font color="#ffffff" face="helvetica, arial"><a href=".">index</a><br><a href="file:%s">%s</a>%s</font></td></tr></table>
     <p><tt>This&nbsp;is&nbsp;a&nbsp;test&nbsp;module&nbsp;for&nbsp;test_pydoc</tt></p>
-<p>""" + module_section + """\
-<table width="100%%" cellspacing=0 cellpadding=2 border=0 summary="section">
-<tr bgcolor="#aa55cc">
-<td colspan=3 valign=bottom>&nbsp;<br>
-<font color="#ffffff" face="helvetica, arial"><big><strong>Modules</strong></big></font></td></tr>
-\x20\x20\x20\x20
-<tr><td bgcolor="#aa55cc"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
-<td width="100%%"><table width="100%%" summary="list"><tr><td width="25%%" valign=top><a href="types.html">types</a><br>
-</td><td width="25%%" valign=top><a href="typing.html">typing</a><br>
-</td><td width="25%%" valign=top></td><td width="25%%" valign=top></td></tr></table></td></tr></table><p>
+<p>
 <table width="100%%" cellspacing=0 cellpadding=2 border=0 summary="section">
 <tr bgcolor="#aa55cc">
 <td colspan=3 valign=bottom>&nbsp;<br>
@@ -303,7 +278,7 @@ war</tt></dd></dl>
 \x20\x20\x20\x20
 <tr><td bgcolor="#7799ee"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
 <td width="100%%">Nobody</td></tr></table>
-""").strip() # ' <- emacs turd
+""".strip() # ' <- emacs turd
 
 expected_html_data_docstrings = tuple(s.replace(' ', '&nbsp;')
                                       for s in expected_data_docstrings)
@@ -817,8 +792,6 @@ class PydocDocTest(unittest.TestCase):
 
         # What we expect to get back: everything on object...
         expected = dict(vars(object))
-        # __new__'s descriptor can be a staticmethod on PyPy
-        expected['__new__'] = object.__new__
         # ...plus our unbound method...
         expected['method_returning_true'] = TestClass.method_returning_true
         # ...but not the non-methods on object.
@@ -1181,8 +1154,8 @@ class TestDescriptions(unittest.TestCase):
 
     @requires_docstrings
     def test_unbound_builtin_method(self):
-        self.assertEqual(self._get_summary_line(pickle.Pickler.dump),
-            "dump(self, obj)")
+        self.assertEqual(self._get_summary_line(_pickle.Pickler.dump),
+            "dump(self, obj, /)")
 
     # these no longer include "self"
     def test_bound_python_method(self):
@@ -1208,15 +1181,15 @@ class TestDescriptions(unittest.TestCase):
     @requires_docstrings
     def test_bound_builtin_method(self):
         s = StringIO()
-        p = pickle.Pickler(s)
+        p = _pickle.Pickler(s)
         self.assertEqual(self._get_summary_line(p.dump),
-            "dump(obj) method of pickle._Pickler instance")
+            "dump(obj, /) method of _pickle.Pickler instance")
 
     # this should *never* include self!
     @requires_docstrings
     def test_module_level_callable(self):
         self.assertEqual(self._get_summary_line(os.stat),
-            "stat(path, *, dir_fd=-100, follow_symlinks=True)")
+            "stat(path, *, dir_fd=None, follow_symlinks=True)")
 
     @requires_docstrings
     def test_staticmethod(self):

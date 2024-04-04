@@ -4,11 +4,10 @@ import os
 import subprocess
 import shutil
 from copy import copy
-from distutils.spawn import find_executable
 
 from test.support import (import_module, TESTFN, unlink, check_warnings,
                           captured_stdout, skip_unless_symlink, change_cwd,
-                          PythonSymlink, impl_detail)
+                          PythonSymlink)
 
 import sysconfig
 from sysconfig import (get_paths, get_platform, get_config_vars,
@@ -229,8 +228,8 @@ class TestSysConfig(unittest.TestCase):
         self.assertTrue(os.path.isfile(config_h), config_h)
 
     def test_get_scheme_names(self):
-        wanted = ('nt', 'nt_user', 'osx_framework_user', 'posix_home',
-                  'posix_prefix', 'posix_user')
+        wanted = ('nt', 'nt_user', 'osx_framework_user',
+                  'posix_home', 'posix_prefix', 'posix_user')
         self.assertEqual(get_scheme_names(), wanted)
 
     @skip_unless_symlink
@@ -271,8 +270,7 @@ class TestSysConfig(unittest.TestCase):
     def test_ldshared_value(self):
         ldflags = sysconfig.get_config_var('LDFLAGS')
         ldshared = sysconfig.get_config_var('LDSHARED')
-        assert ldflags
-        assert ldshared
+
         self.assertIn(ldflags, ldshared)
 
     @unittest.skipUnless(sys.platform == "darwin", "test only relevant on MacOSX")
@@ -318,7 +316,6 @@ class TestSysConfig(unittest.TestCase):
         self.assertEqual(status, 0)
         self.assertEqual(my_platform, test_platform)
 
-    @impl_detail("Test is not PyPy compatible", pypy=False)
     def test_srcdir(self):
         # See Issues #15322, #15364.
         srcdir = sysconfig.get_config_var('srcdir')
@@ -393,7 +390,6 @@ class TestSysConfig(unittest.TestCase):
 
 class MakefileTests(unittest.TestCase):
 
-    @impl_detail("Test is not PyPy compatible", pypy=False)
     @unittest.skipIf(sys.platform.startswith('win'),
                      'Test is not Windows compatible')
     def test_get_makefile_filename(self):
@@ -420,9 +416,6 @@ class MakefileTests(unittest.TestCase):
             'var6': '42/lib/python3.5/config-b42dollar$5-x86_64-linux-gnu',
         })
 
-    def test_multiarch_config_var(self):
-        multiarch = get_config_var('MULTIARCH')
-        self.assertIsInstance(multiarch, str)
 
 if __name__ == "__main__":
     unittest.main()

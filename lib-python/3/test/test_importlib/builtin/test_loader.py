@@ -1,8 +1,6 @@
 from .. import abc
 from .. import util
 
-from importlib.machinery import BuiltinImporter
-
 machinery = util.import_importlib('importlib.machinery')
 
 import sys
@@ -16,7 +14,7 @@ class LoaderTests(abc.LoaderTests):
 
     def setUp(self):
         self.verification = {'__name__': 'errno', '__package__': '',
-                             '__loader__': BuiltinImporter}  # PyPy change
+                             '__loader__': self.machinery.BuiltinImporter}
 
     def verify(self, module):
         """Verify that the module matches against what it should have."""

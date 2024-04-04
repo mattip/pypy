@@ -499,10 +499,9 @@ class BaseTest:
         )
 
         b = array.array(self.badtypecode())
-        with self.assertRaises(TypeError):
-            a + b
-        with self.assertRaises(TypeError):
-            a + 'bad'
+        self.assertRaises(TypeError, a.__add__, b)
+
+        self.assertRaises(TypeError, a.__add__, "bad")
 
     def test_iadd(self):
         a = array.array(self.typecode, self.example[::-1])
@@ -521,10 +520,9 @@ class BaseTest:
         )
 
         b = array.array(self.badtypecode())
-        with self.assertRaises(TypeError):
-            a += b
-        with self.assertRaises(TypeError):
-            a += 'bad'
+        self.assertRaises(TypeError, a.__add__, b)
+
+        self.assertRaises(TypeError, a.__iadd__, "bad")
 
     def test_mul(self):
         a = 5*array.array(self.typecode, self.example)
@@ -557,8 +555,7 @@ class BaseTest:
             array.array(self.typecode, [a[0]] * 5)
         )
 
-        with self.assertRaises(TypeError):
-            a * 'bad'
+        self.assertRaises(TypeError, a.__mul__, "bad")
 
     def test_imul(self):
         a = array.array(self.typecode, self.example)
@@ -587,8 +584,7 @@ class BaseTest:
         a *= -1
         self.assertEqual(a, array.array(self.typecode))
 
-        with self.assertRaises(TypeError):
-            a *= 'bad'
+        self.assertRaises(TypeError, a.__imul__, "bad")
 
     def test_getitem(self):
         a = array.array(self.typecode, self.example)
@@ -979,10 +975,6 @@ class BaseTest:
         # Resizing is forbidden when there are buffer exports.
         # For issue 4509, we also check after each error that
         # the array was not modified.
-        if support.check_impl_detail(pypy=True):
-            # PyPy export buffers differently, and allows reallocation
-            # of the underlying object.
-            return
         self.assertRaises(BufferError, a.append, a[0])
         self.assertEqual(m.tobytes(), expected)
         self.assertRaises(BufferError, a.extend, a[0:1])
@@ -1110,8 +1102,6 @@ class UnicodeTest(StringTest, unittest.TestCase):
         self.assertRaises(TypeError, a.fromunicode)
 
     def test_issue17223(self):
-        if support.check_impl_detail(pypy=True):
-            self.skipTest("specific to flexible string representation")
         # this used to crash
         if sizeof_wchar == 4:
             # U+FFFFFFFF is an invalid code point in Unicode 6.0

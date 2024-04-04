@@ -175,7 +175,7 @@ List comprehension element unpacking
 #                   ^
 #     SyntaxError: invalid syntax
 
-    >>> dict(**x for x in [{1:2}]) # doctest: +IGNORE_EXCEPTION_DETAIL
+    >>> dict(**x for x in [{1:2}])
     Traceback (most recent call last):
     ...
         dict(**x for x in [{1:2}])
@@ -241,35 +241,30 @@ Make sure the raised errors are right for keyword argument unpackings
 
 Overridden parameters
 
-    >>> f(x=5, **{'x': 3}, y=2)     # doctest:+ELLIPSIS
+    >>> f(x=5, **{'x': 3}, y=2)
     Traceback (most recent call last):
       ...
-    TypeError: ...got multiple values for keyword argument 'x'
+    TypeError: test.test_unpack_ex.f() got multiple values for keyword argument 'x'
 
-    >>> f(**{'x': 3}, x=5, y=2)     # doctest:+ELLIPSIS
+    >>> f(**{'x': 3}, x=5, y=2)
     Traceback (most recent call last):
       ...
-    TypeError: ...got multiple values for keyword argument 'x'
+    TypeError: test.test_unpack_ex.f() got multiple values for keyword argument 'x'
 
-    >>> f(x=5, **{'x': 3}, **{'x': 2})     # doctest:+ELLIPSIS
+    >>> f(**{'x': 3}, **{'x': 5}, y=2)
     Traceback (most recent call last):
       ...
-    TypeError: ...got multiple values for keyword argument 'x'
+    TypeError: test.test_unpack_ex.f() got multiple values for keyword argument 'x'
 
-    >>> f(**{1: 3}, **{1: 5})     # doctest:+ELLIPSIS
+    >>> f(x=5, **{'x': 3}, **{'x': 2})
     Traceback (most recent call last):
       ...
-    TypeError: ...got multiple values for keyword argument...
+    TypeError: test.test_unpack_ex.f() got multiple values for keyword argument 'x'
 
-    >>> f(x=5, **{'x': 3}, **{'x': 2})     # doctest:+ELLIPSIS
+    >>> f(**{1: 3}, **{1: 5})
     Traceback (most recent call last):
       ...
-    TypeError: ...got multiple values for keyword argument 'x'
-
-    >>> f(**{1: 3}, **{1: 5})     # doctest:+ELLIPSIS
-    Traceback (most recent call last):
-      ...
-    TypeError: ...got multiple values for keyword argument...
+    TypeError: test.test_unpack_ex.f() got multiple values for keyword argument '1'
 
 Unpacking non-sequence
 

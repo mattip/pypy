@@ -1,7 +1,7 @@
 import unittest
 import weakref
 
-from test.support import check_syntax_error
+from test.support import check_syntax_error, cpython_only
 from test.support import gc_collect
 
 
@@ -500,6 +500,7 @@ class ScopeTests(unittest.TestCase):
         self.assertNotIn("x", varnames)
         self.assertIn("y", varnames)
 
+    @cpython_only
     def testLocalsClass_WithTrace(self):
         # Issue23728: after the trace function returns, the locals()
         # dictionary is used to update all variables, this used to
@@ -529,6 +530,7 @@ class ScopeTests(unittest.TestCase):
         inst = f(3)()
         self.assertEqual(inst.a, inst.m())
 
+    @cpython_only
     def testInteractionWithTraceFunc(self):
 
         import sys
@@ -728,6 +730,7 @@ class ScopeTests(unittest.TestCase):
         self.assertFalse(hasattr(X, "x"))
         self.assertEqual(x, 42)
 
+    @cpython_only
     def testCellLeak(self):
         # Issue 17927.
         #

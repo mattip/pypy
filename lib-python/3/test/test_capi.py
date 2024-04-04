@@ -16,7 +16,7 @@ import weakref
 import importlib.machinery
 import importlib.util
 from test import support
-from test.support import MISSING_C_DOCSTRINGS, refcount_test
+from test.support import MISSING_C_DOCSTRINGS
 from test.support.script_helper import assert_python_failure, assert_python_ok
 try:
     import _posixsubprocess
@@ -26,20 +26,11 @@ except ImportError:
 # Skip this test if the _testcapi module isn't available.
 _testcapi = support.import_module('_testcapi')
 
-# CPython internals
-try:
-    import _testinternalcapi
-except ImportError:
-    _testinternalcapi = None
+import _testinternalcapi
 
 # Were we compiled --with-pydebug or with #define Py_DEBUG?
 Py_DEBUG = hasattr(sys, 'gettotalrefcount')
 
-skips = []
-if support.check_impl_detail(pypy=True):
-    skips += [
-        'test_lazy_hash_inheritance',
-    ]
 
 def testfunction(self):
     """some doc"""
@@ -63,8 +54,6 @@ class CAPITest(unittest.TestCase):
         self.assertEqual(testfunction.attribute, "test")
         self.assertRaises(AttributeError, setattr, inst.testfunction, "attribute", "test")
 
-    @unittest.skipIf(support.check_impl_detail(pypy=True),
-                    "doesn't crash on PyPy")
     def test_no_FatalError_infinite_loop(self):
         with support.SuppressCrashReport():
             p = subprocess.Popen([sys.executable, "-c",
@@ -229,9 +218,9 @@ class CAPITest(unittest.TestCase):
         else:
             with self.assertRaises(SystemError) as cm:
                 _testcapi.return_null_without_error()
-            # PyPy change: different message
             self.assertRegex(str(cm.exception),
-                'Function returned a NULL result without setting an exception')
+                             'return_null_without_error.* '
+                             'returned NULL without setting an error')
 
     def test_return_result_with_error(self):
         # Issue #23571: A function must not return a result with an error set
@@ -263,14 +252,13 @@ class CAPITest(unittest.TestCase):
         else:
             with self.assertRaises(SystemError) as cm:
                 _testcapi.return_result_with_error()
-            # PyPy change: different message
             self.assertRegex(str(cm.exception),
-                'An exception was set, but function returned a value')
+                             'return_result_with_error.* '
+                             'returned a result with an error set')
 
     def test_buildvalue_N(self):
         _testcapi.test_buildvalue_N()
 
-    @support.cpython_only
     def test_set_nomemory(self):
         code = """if 1:
             import _testcapi
@@ -382,7 +370,6 @@ class CAPITest(unittest.TestCase):
         from _testcapi import MyList
         self.do_test_trashcan_python_class(MyList)
 
-    @support.cpython_only
     def do_test_trashcan_python_class(self, base):
         # Check that the trashcan mechanism works properly for a Python
         # subclass of a class using the trashcan (this specific test assumes
@@ -411,7 +398,6 @@ class CAPITest(unittest.TestCase):
             del L
             self.assertEqual(PyList.num, 0)
 
-    @refcount_test
     def test_subclass_of_heap_gc_ctype_with_tpdealloc_decrefs_once(self):
         class HeapGcCTypeSubclass(_testcapi.HeapGcCType):
             def __init__(self):
@@ -429,7 +415,6 @@ class CAPITest(unittest.TestCase):
         del subclass_instance
         self.assertEqual(type_refcnt - 1, sys.getrefcount(HeapGcCTypeSubclass))
 
-    @refcount_test
     def test_subclass_of_heap_gc_ctype_with_del_modifying_dunder_class_only_decrefs_once(self):
         class A(_testcapi.HeapGcCType):
             def __init__(self):
@@ -495,10 +480,7 @@ class CAPITest(unittest.TestCase):
         inst = _testcapi.HeapCTypeWithBuffer()
         b = bytes(inst)
         self.assertEqual(b, b"1234")
-        # release the buffer on PyPy
-        del inst
 
-    @refcount_test
     def test_c_subclass_of_heap_ctype_with_tpdealloc_decrefs_once(self):
         subclass_instance = _testcapi.HeapCTypeSubclass()
         type_refcnt = sys.getrefcount(_testcapi.HeapCTypeSubclass)
@@ -511,7 +493,6 @@ class CAPITest(unittest.TestCase):
         del subclass_instance
         self.assertEqual(type_refcnt - 1, sys.getrefcount(_testcapi.HeapCTypeSubclass))
 
-    @refcount_test
     def test_c_subclass_of_heap_ctype_with_del_modifying_dunder_class_only_decrefs_once(self):
         subclass_instance = _testcapi.HeapCTypeSubclassWithFinalizer()
         type_refcnt = sys.getrefcount(_testcapi.HeapCTypeSubclassWithFinalizer)
@@ -577,8 +558,6 @@ class CAPITest(unittest.TestCase):
         self.assertEqual(result.co_consts, expected.co_consts)
 
 
-@unittest.skipIf(support.check_impl_detail(pypy=True),
-                 'Py_AddPendingCall not currently supported.')
 class TestPendingCalls(unittest.TestCase):
 
     def pendingcalls_submit(self, l, n):
@@ -658,8 +637,6 @@ class TestPendingCalls(unittest.TestCase):
         self.pendingcalls_wait(l, n)
 
 
-@unittest.skipIf(support.check_impl_detail(pypy=True),
-                "subinterpreters not implemented on PyPy")
 class SubinterpreterTest(unittest.TestCase):
 
     def test_subinterps(self):
@@ -770,11 +747,9 @@ class TestThreadState(unittest.TestCase):
 class Test_testcapi(unittest.TestCase):
     locals().update((name, getattr(_testcapi, name))
                     for name in dir(_testcapi)
-                    if name.startswith('test_') and name not in skips and not name.endswith('_code'))
+                    if name.startswith('test_') and not name.endswith('_code'))
 
 
-@unittest.skipIf(support.check_impl_detail(pypy=True),
-    "_testinternalcapi is CPython only")
 class Test_testinternalcapi(unittest.TestCase):
     locals().update((name, getattr(_testinternalcapi, name))
                     for name in dir(_testinternalcapi)
@@ -798,8 +773,6 @@ class PyMemDebugTests(unittest.TestCase):
         stderr = out.err
         return stderr.decode('ascii', 'replace')
 
-    @unittest.skipIf(support.check_impl_detail(pypy=True),
-        "PyMem debugging not implemented on PyPy")
     def test_buffer_overflow(self):
         out = self.check('import _testcapi; _testcapi.pymem_buffer_overflow()')
         regex = (r"Debug memory block at address p={ptr}: API 'm'\n"
@@ -820,8 +793,6 @@ class PyMemDebugTests(unittest.TestCase):
         regex = re.compile(regex, flags=re.DOTALL)
         self.assertRegex(out, regex)
 
-    @unittest.skipIf(support.check_impl_detail(pypy=True),
-        "PyMem debugging not implemented on PyPy")
     def test_api_misuse(self):
         out = self.check('import _testcapi; _testcapi.pymem_api_misuse()')
         regex = (r"Debug memory block at address p={ptr}: API 'm'\n"
@@ -843,14 +814,12 @@ class PyMemDebugTests(unittest.TestCase):
                     'Python memory allocator called without holding the GIL')
         self.assertIn(expected, out)
 
-    @support.cpython_only
     def test_pymem_malloc_without_gil(self):
         # Debug hooks must raise an error if PyMem_Malloc() is called
         # without holding the GIL
         code = 'import _testcapi; _testcapi.pymem_malloc_without_gil()'
         self.check_malloc_without_gil(code)
 
-    @support.cpython_only
     def test_pyobject_malloc_without_gil(self):
         # Debug hooks must raise an error if PyObject_Malloc() is called
         # without holding the GIL
@@ -876,19 +845,15 @@ class PyMemDebugTests(unittest.TestCase):
             MALLOC_CONF="junk:false",
         )
 
-    @support.cpython_only
     def test_pyobject_null_is_freed(self):
         self.check_pyobject_is_freed('check_pyobject_null_is_freed')
 
-    @support.cpython_only
     def test_pyobject_uninitialized_is_freed(self):
         self.check_pyobject_is_freed('check_pyobject_uninitialized_is_freed')
 
-    @support.cpython_only
     def test_pyobject_forbidden_bytes_is_freed(self):
         self.check_pyobject_is_freed('check_pyobject_forbidden_bytes_is_freed')
 
-    @support.cpython_only
     def test_pyobject_freed_is_freed(self):
         self.check_pyobject_is_freed('check_pyobject_freed_is_freed')
 

@@ -1298,7 +1298,6 @@ test case
         with self.assertRaises(TypeError):
             self.assertRaises((ValueError, object))
 
-    @support.refcount_test
     def testAssertRaisesRefcount(self):
         # bpo-23890: assertRaises() must not keep objects alive longer
         # than expected

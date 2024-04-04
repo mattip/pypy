@@ -275,16 +275,11 @@ def generator_function():
         "finally"
 def generator_example():
     # any() will leave the generator before its end
-    x = any(generator_function()); gc.collect()
+    x = any(generator_function())
 
     # the following lines were not traced
     for x in range(10):
         y = x
-
-# On CPython, when the generator is decref'ed to zero, we see the trace
-# for the "finally:" portion.  On PyPy, we don't see it before the next
-# garbage collection.  That's why we put gc.collect() on the same line
-# above.
 
 generator_example.events = ([(0, 'call'),
                              (2, 'line'),
@@ -413,24 +408,17 @@ class TraceTestCase(unittest.TestCase):
         self.run_test(tighterloop_example)
 
     def test_13_genexp(self):
-        if self.using_gc:
-            gc.enable()
-            support.gc_collect()
-        try:
-            self.run_test(generator_example)
-            # issue1265: if the trace function contains a generator,
-            # and if the traced function contains another generator
-            # that is not completely exhausted, the trace stopped.
-            # Worse: the 'finally' clause was not invoked.
-            tracer = self.make_tracer()
-            sys.settrace(tracer.traceWithGenexp)
-            generator_example()
-            sys.settrace(None)
-            self.compare_events(generator_example.__code__.co_firstlineno,
-                                tracer.events, generator_example.events)
-        finally:
-            if self.using_gc:
-                gc.disable()
+        self.run_test(generator_example)
+        # issue1265: if the trace function contains a generator,
+        # and if the traced function contains another generator
+        # that is not completely exhausted, the trace stopped.
+        # Worse: the 'finally' clause was not invoked.
+        tracer = self.make_tracer()
+        sys.settrace(tracer.traceWithGenexp)
+        generator_example()
+        sys.settrace(None)
+        self.compare_events(generator_example.__code__.co_firstlineno,
+                            tracer.events, generator_example.events)
 
     def test_14_onliner_if(self):
         def onliners():
@@ -671,6 +659,7 @@ class SkipLineEventsTraceTestCase(TraceTestCase):
         return Tracer(trace_line_events=False)
 
 
+@support.cpython_only
 class TraceOpcodesTestCase(TraceTestCase):
     """Repeat the trace tests, but with per-opcodes events enabled"""
 

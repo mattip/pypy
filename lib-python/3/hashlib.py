@@ -58,8 +58,7 @@ More condensed:
 __always_supported = ('md5', 'sha1', 'sha224', 'sha256', 'sha384', 'sha512',
                       'blake2b', 'blake2s',
                       'sha3_224', 'sha3_256', 'sha3_384', 'sha3_512',
-                      'shake_128', 'shake_256'
-)
+                      'shake_128', 'shake_256')
 
 
 algorithms_guaranteed = set(__always_supported)
@@ -173,14 +172,9 @@ try:
     __get_hash = __get_openssl_constructor
     algorithms_available = algorithms_available.union(
             _hashlib.openssl_md_meth_names)
-except ImportError as e:
+except ImportError:
     new = __py_new
     __get_hash = __get_builtin_constructor
-    # added by PyPy
-    import warnings
-    warnings.warn("The _hashlib module is not available, falling back "
-                  "to a much slower implementation (%s)" % str(e),
-                  RuntimeWarning)
 
 try:
     # OpenSSL's PKCS5_PBKDF2_HMAC requires OpenSSL 1.0+ with HMAC and SHA

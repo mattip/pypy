@@ -45,7 +45,6 @@ class CodeopTests(unittest.TestCase):
 
     def assertIncomplete(self, str, symbol='single'):
         '''succeed iff str is the start of a valid piece of code'''
-        print(repr(str), symbol)
         self.assertEqual(compile_command(str, symbol=symbol), None)
 
     def assertInvalid(self, str, symbol='single', is_syntax=1):
@@ -272,9 +271,7 @@ class CodeopTests(unittest.TestCase):
         ai("a = 'a\\\n")
 
         ai("a = 1","eval")
-        if support.check_impl_detail():   # on PyPy it asks for more data, which is not
-            ai("a = (","eval")    # completely correct but hard to fix and
-                                  # really a detail (in my opinion <arigo>)
+        ai("a = (","eval")
         ai("]","eval")
         ai("())","eval")
         ai("[}","eval")

@@ -296,26 +296,26 @@ class AbstractTestsWithSourceFile:
                 self.assertEqual(openobj.read(1), b'2')
 
     def test_writestr_compression(self):
-        with zipfile.ZipFile(TESTFN2, "w") as zipfp:
-            zipfp.writestr("b.txt", "hello world", compress_type=self.compression)
-            info = zipfp.getinfo('b.txt')
+        zipfp = zipfile.ZipFile(TESTFN2, "w")
+        zipfp.writestr("b.txt", "hello world", compress_type=self.compression)
+        info = zipfp.getinfo('b.txt')
         self.assertEqual(info.compress_type, self.compression)
 
     def test_writestr_compresslevel(self):
-        with zipfile.ZipFile(TESTFN2, "w", compresslevel=1) as zipfp:
-            zipfp.writestr("a.txt", "hello world", compress_type=self.compression)
-            zipfp.writestr("b.txt", "hello world", compress_type=self.compression,
+        zipfp = zipfile.ZipFile(TESTFN2, "w", compresslevel=1)
+        zipfp.writestr("a.txt", "hello world", compress_type=self.compression)
+        zipfp.writestr("b.txt", "hello world", compress_type=self.compression,
                        compresslevel=2)
 
-            # Compression level follows the constructor.
-            a_info = zipfp.getinfo('a.txt')
-            self.assertEqual(a_info.compress_type, self.compression)
-            self.assertEqual(a_info._compresslevel, 1)
+        # Compression level follows the constructor.
+        a_info = zipfp.getinfo('a.txt')
+        self.assertEqual(a_info.compress_type, self.compression)
+        self.assertEqual(a_info._compresslevel, 1)
 
-            # Compression level is overridden.
-            b_info = zipfp.getinfo('b.txt')
-            self.assertEqual(b_info.compress_type, self.compression)
-            self.assertEqual(b_info._compresslevel, 2)
+        # Compression level is overridden.
+        b_info = zipfp.getinfo('b.txt')
+        self.assertEqual(b_info.compress_type, self.compression)
+        self.assertEqual(b_info._compresslevel, 2)
 
     def test_read_return_size(self):
         # Issue #9837: ZipExtFile.read() shouldn't return more bytes
@@ -1904,7 +1904,6 @@ class OtherTests(unittest.TestCase):
         zipf.close()
         try:
             zipf = zipfile.ZipFile(TESTFN, mode="r")
-            zipf.close()
         except zipfile.BadZipFile:
             self.fail("Unable to create empty ZIP file in 'w' mode")
 
@@ -1912,7 +1911,6 @@ class OtherTests(unittest.TestCase):
         zipf.close()
         try:
             zipf = zipfile.ZipFile(TESTFN, mode="r")
-            zipf.close()
         except:
             self.fail("Unable to create empty ZIP file in 'a' mode")
 
@@ -2046,6 +2044,66 @@ class OtherTests(unittest.TestCase):
         with mock.patch('zipfile.bz2', None):
             with zipfile.ZipFile(zip_file) as zf:
                 self.assertRaises(RuntimeError, zf.extract, 'a.txt')
+
+    @requires_zlib()
+    def test_full_overlap(self):
+        data = (
+            b'PK\x03\x04\x14\x00\x00\x00\x08\x00\xa0lH\x05\xe2\x1e'
+            b'8\xbb\x10\x00\x00\x00\t\x04\x00\x00\x01\x00\x00\x00a\xed'
+            b'\xc0\x81\x08\x00\x00\x00\xc00\xd6\xfbK\\d\x0b`P'
+            b'K\x01\x02\x14\x00\x14\x00\x00\x00\x08\x00\xa0lH\x05\xe2'
+            b'\x1e8\xbb\x10\x00\x00\x00\t\x04\x00\x00\x01\x00\x00\x00\x00'
+            b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00aPK'
+            b'\x01\x02\x14\x00\x14\x00\x00\x00\x08\x00\xa0lH\x05\xe2\x1e'
+            b'8\xbb\x10\x00\x00\x00\t\x04\x00\x00\x01\x00\x00\x00\x00\x00'
+            b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00bPK\x05'
+            b'\x06\x00\x00\x00\x00\x02\x00\x02\x00^\x00\x00\x00/\x00\x00'
+            b'\x00\x00\x00'
+        )
+        with zipfile.ZipFile(io.BytesIO(data), 'r') as zipf:
+            self.assertEqual(zipf.namelist(), ['a', 'b'])
+            zi = zipf.getinfo('a')
+            self.assertEqual(zi.header_offset, 0)
+            self.assertEqual(zi.compress_size, 16)
+            self.assertEqual(zi.file_size, 1033)
+            zi = zipf.getinfo('b')
+            self.assertEqual(zi.header_offset, 0)
+            self.assertEqual(zi.compress_size, 16)
+            self.assertEqual(zi.file_size, 1033)
+            self.assertEqual(len(zipf.read('a')), 1033)
+            with self.assertRaisesRegex(zipfile.BadZipFile, 'File name.*differ'):
+                zipf.read('b')
+
+    @requires_zlib()
+    def test_quoted_overlap(self):
+        data = (
+            b'PK\x03\x04\x14\x00\x00\x00\x08\x00\xa0lH\x05Y\xfc'
+            b'8\x044\x00\x00\x00(\x04\x00\x00\x01\x00\x00\x00a\x00'
+            b'\x1f\x00\xe0\xffPK\x03\x04\x14\x00\x00\x00\x08\x00\xa0l'
+            b'H\x05\xe2\x1e8\xbb\x10\x00\x00\x00\t\x04\x00\x00\x01\x00'
+            b'\x00\x00b\xed\xc0\x81\x08\x00\x00\x00\xc00\xd6\xfbK\\'
+            b'd\x0b`PK\x01\x02\x14\x00\x14\x00\x00\x00\x08\x00\xa0'
+            b'lH\x05Y\xfc8\x044\x00\x00\x00(\x04\x00\x00\x01'
+            b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+            b'\x00aPK\x01\x02\x14\x00\x14\x00\x00\x00\x08\x00\xa0l'
+            b'H\x05\xe2\x1e8\xbb\x10\x00\x00\x00\t\x04\x00\x00\x01\x00'
+            b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00$\x00\x00\x00'
+            b'bPK\x05\x06\x00\x00\x00\x00\x02\x00\x02\x00^\x00\x00'
+            b'\x00S\x00\x00\x00\x00\x00'
+        )
+        with zipfile.ZipFile(io.BytesIO(data), 'r') as zipf:
+            self.assertEqual(zipf.namelist(), ['a', 'b'])
+            zi = zipf.getinfo('a')
+            self.assertEqual(zi.header_offset, 0)
+            self.assertEqual(zi.compress_size, 52)
+            self.assertEqual(zi.file_size, 1064)
+            zi = zipf.getinfo('b')
+            self.assertEqual(zi.header_offset, 36)
+            self.assertEqual(zi.compress_size, 16)
+            self.assertEqual(zi.file_size, 1033)
+            with self.assertRaisesRegex(zipfile.BadZipFile, 'Overlapped entries'):
+                zipf.read('a')
+            self.assertEqual(len(zipf.read('b')), 1033)
 
     def tearDown(self):
         unlink(TESTFN)

@@ -887,8 +887,7 @@ def _test(N=2000):
 ## ------------------------------------------------------
 ## ------------------ fork support  ---------------------
 
-# PyPy change: we have _os.fork, but not _os.register_at_fork yet
-if hasattr(_os, "register_at_fork"):
+if hasattr(_os, "fork"):
     _os.register_at_fork(after_in_child=_inst.seed)
 
 

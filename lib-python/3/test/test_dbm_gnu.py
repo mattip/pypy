@@ -108,7 +108,8 @@ class TestGdbm(unittest.TestCase):
 
         with self.assertRaises(gdbm.error) as cm:
             db.keys()
-        self.assertIn("GDBM object has already been closed", str(cm.exception))
+        self.assertEqual(str(cm.exception),
+                         "GDBM object has already been closed")
 
     def test_bytes(self):
         with gdbm.open(filename, 'c') as db:

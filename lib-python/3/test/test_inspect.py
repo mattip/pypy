@@ -8,6 +8,7 @@ import io
 import linecache
 import os
 from os.path import normcase
+import _pickle
 import pickle
 import shutil
 import sys
@@ -31,8 +32,6 @@ from test import inspect_fodder2 as mod2
 from test import support
 
 from test.test_import import _ready_to_import
-if support.check_impl_detail():
-    import _pickle
 
 
 # Functions tested in this suite:
@@ -58,8 +57,6 @@ def revise(filename, *args):
 
 git = mod.StupidGit()
 
-class ExampleClassWithSlot(object):
-    __slots__ = 'myslot'
 
 def signatures_with_lexicographic_keyword_only_parameters():
     """
@@ -126,8 +123,7 @@ class TestPredicates(IsTestBase):
     def test_excluding_predicates(self):
         global tb
         self.istest(inspect.isbuiltin, 'sys.exit')
-        if support.check_impl_detail():
-            self.istest(inspect.isbuiltin, '[].append')
+        self.istest(inspect.isbuiltin, '[].append')
         self.istest(inspect.iscode, 'mod.spam.__code__')
         try:
             1/0
@@ -162,11 +158,7 @@ class TestPredicates(IsTestBase):
             self.istest(inspect.iscoroutinefunction, 'coroutine_function_example')
 
         if hasattr(types, 'MemberDescriptorType'):
-            # App-level slots are member descriptors on both PyPy and
-            # CPython, but the various built-in attributes are all
-            # getsetdescriptors on PyPy.  So check ismemberdescriptor()
-            # with an app-level slot.
-            self.istest(inspect.ismemberdescriptor, 'ExampleClassWithSlot.myslot')
+            self.istest(inspect.ismemberdescriptor, 'datetime.timedelta.days')
         else:
             self.assertFalse(inspect.ismemberdescriptor(datetime.timedelta.days))
 
@@ -459,7 +451,6 @@ class TestRetrievingSourceCode(GetSourceBase):
         self.assertEqual(inspect.getdoc(mod.FesteringGob.contradiction),
                          'The automatic gainsaying.')
 
-    @cpython_only  # _finddoc() is broken on PyPy, but getdoc() is OK
     @unittest.skipIf(MISSING_C_DOCSTRINGS, "test requires docstrings")
     def test_finddoc(self):
         finddoc = inspect._finddoc
@@ -986,11 +977,10 @@ class TestClassesAndFunctions(unittest.TestCase):
     @unittest.skipIf(MISSING_C_DOCSTRINGS,
                      "Signature information for builtins requires docstrings")
     def test_getfullargspec_builtin_methods(self):
-        if support.check_impl_detail():
-            self.assertFullArgSpecEquals(_pickle.Pickler.dump, ['self', 'obj'],
+        self.assertFullArgSpecEquals(_pickle.Pickler.dump, ['self', 'obj'],
                                      formatted='(self, obj)')
 
-            self.assertFullArgSpecEquals(_pickle.Pickler(io.BytesIO()).dump, ['self', 'obj'],
+        self.assertFullArgSpecEquals(_pickle.Pickler(io.BytesIO()).dump, ['self', 'obj'],
                                      formatted='(self, obj)')
 
         self.assertFullArgSpecEquals(
@@ -1058,9 +1048,8 @@ class TestClassesAndFunctions(unittest.TestCase):
 
         attrs = attrs_wo_objs(A)
 
-        # changed in PyPy
-        self.assertIn(('__new__', 'static method', object), attrs, 'missing __new__')
-
+        self.assertIn(('__new__', 'static method', object), attrs,
+                      'missing __new__')
         self.assertIn(('__init__', 'method', object), attrs, 'missing __init__')
 
         self.assertIn(('s', 'static method', A), attrs, 'missing static method')
@@ -1245,14 +1234,7 @@ class TestClassesAndFunctions(unittest.TestCase):
             class Empty(object):
                 pass
             def wrapped(x):
-                xname = None
-                if '__name__' in dir(x):
-                    xname = x.__name__
-                elif isinstance(x, (classmethod, staticmethod)):
-                    # Some of PyPy's standard descriptors are
-                    # class/staticmethods
-                    xname = x.__func__.__name__
-                if xname is not None and hasattr(Empty, xname):
+                if '__name__' in dir(x) and hasattr(Empty, x.__name__):
                     return False
                 return pred(x)
             return wrapped
@@ -2358,10 +2340,9 @@ class TestSignatureObject(unittest.TestCase):
 
         # normal method
         # (PyMethodDescr_Type, "method_descriptor")
-        if support.check_impl_detail():
-            test_unbound_method(_pickle.Pickler.dump)
-            d = _pickle.Pickler(io.StringIO())
-            test_callable(d.dump)
+        test_unbound_method(_pickle.Pickler.dump)
+        d = _pickle.Pickler(io.StringIO())
+        test_callable(d.dump)
 
         # static method
         test_callable(bytes.maketrans)
@@ -3044,7 +3025,6 @@ class TestSignatureObject(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "callable.*is not supported"):
             self.assertEqual(inspect.signature(D), None)
 
-    @cpython_only
     @unittest.skipIf(MISSING_C_DOCSTRINGS,
                      "Signature information for builtins requires docstrings")
     def test_signature_on_builtin_class(self):
@@ -3310,7 +3290,6 @@ class TestSignatureObject(unittest.TestCase):
         foo_sig = MySignature.from_callable(foo)
         self.assertIsInstance(foo_sig, MySignature)
 
-    @cpython_only
     @unittest.skipIf(MISSING_C_DOCSTRINGS,
                      "Signature information for builtins requires docstrings")
     def test_signature_from_callable_builtin_obj(self):

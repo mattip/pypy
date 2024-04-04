@@ -1,4 +1,4 @@
-from . import util
+﻿from . import util
 abc = util.import_importlib('importlib.abc')
 init = util.import_importlib('importlib')
 machinery = util.import_importlib('importlib.machinery')
@@ -840,7 +840,6 @@ class MagicNumberTests(unittest.TestCase):
     """
     Test release compatibility issues relating to importlib
     """
-    @support.cpython_only
     @unittest.skipUnless(
         sys.version_info.releaselevel in ('candidate', 'final'),
         'only applies to candidate or final python release levels'

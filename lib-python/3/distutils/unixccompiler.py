@@ -55,7 +55,7 @@ class UnixCCompiler(CCompiler):
     executables = {'preprocessor' : None,
                    'compiler'     : ["cc"],
                    'compiler_so'  : ["cc"],
-                   'compiler_cxx' : ["c++"],  # pypy: changed, 'cc' is bogus
+                   'compiler_cxx' : ["cc"],
                    'linker_so'    : ["cc", "-shared"],
                    'linker_exe'   : ["cc"],
                    'archiver'     : ["ar", "-cr"],
@@ -215,10 +215,6 @@ class UnixCCompiler(CCompiler):
         return "-L" + dir
 
     def _is_gcc(self, compiler_name):
-        if "__pypy__" in sys.builtin_module_names:   # issue #2747
-            if (compiler_name.startswith('cc') or
-                compiler_name.startswith('c++')):
-                return True
         # clang uses same syntax for rpath as gcc
         return any(name in compiler_name for name in ("gcc", "g++", "clang"))
 
@@ -292,7 +288,7 @@ class UnixCCompiler(CCompiler):
             #       usr/lib/libedit.tbd
             # vs
             #   /usr/lib/libedit.dylib
-            cflags = sysconfig.get_config_var('CFLAGS') or ''
+            cflags = sysconfig.get_config_var('CFLAGS')
             m = re.search(r'-isysroot\s*(\S+)', cflags)
             if m is None:
                 sysroot = _osx_support._default_sysroot(sysconfig.get_config_var('CC'))

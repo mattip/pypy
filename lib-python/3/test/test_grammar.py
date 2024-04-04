@@ -1,7 +1,7 @@
 # Python test set -- part 1, grammar.
 # This just tests whether the parser accepts them all.
 
-from test.support import check_syntax_error, check_syntax_warning, check_impl_detail, use_old_parser
+from test.support import check_syntax_error, check_syntax_warning, use_old_parser
 import inspect
 import unittest
 import sys
@@ -259,7 +259,7 @@ the \'lazy\' dog.\n\
         for s in samples:
             with self.assertRaises(SyntaxError) as cm:
                 compile(s, "<test>", "exec")
-            self.assertIn("parenthesis is never closed", str(cm.exception))
+            self.assertIn("unexpected EOF", str(cm.exception))
 
 var_annot_global: int # a global annotated is necessary for test_var_annot
 
@@ -788,16 +788,8 @@ class GrammarTests(unittest.TestCase):
                     with self.assertRaisesRegex(SyntaxError, custom_msg):
                         exec(source)
                 source = source.replace("foo", "(foo.)")
-                # PyPy's parser also detects the same "Missing parentheses"
-                # if there are some parentheses later in the line
-                # (above, the cases that contain '{1:').
-                # CPython gives up in this case.
-                if check_impl_detail(pypy=True) and '{1:' in source:
-                    expected = custom_msg
-                else:
-                    expected = "invalid syntax"
                 with self.subTest(source=source):
-                    with self.assertRaisesRegex(SyntaxError, expected):
+                    with self.assertRaisesRegex(SyntaxError, "invalid syntax"):
                         exec(source)
 
     def test_del_stmt(self):

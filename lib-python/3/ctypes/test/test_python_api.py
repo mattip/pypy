@@ -9,12 +9,8 @@ from _ctypes import PyObj_FromPtr
 
 ################################################################
 
-try:
-    from sys import getrefcount as grc
-except ImportError:
-    grc = None
+from sys import getrefcount as grc
 
-@support.cpython_only
 class PythonAPITestCase(unittest.TestCase):
 
     def test_PyBytes_FromStringAndSize(self):

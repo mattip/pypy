@@ -408,10 +408,9 @@ class IntTestCases(unittest.TestCase):
                 try:
                     int(TruncReturnsNonIntegral())
                 except TypeError as e:
-                    if support.check_impl_detail(pypy=False):
-                        self.assertEqual(str(e),
-                                          "__trunc__ returned non-Integral"
-                                          " (type NonIntegral)")
+                    self.assertEqual(str(e),
+                                      "__trunc__ returned non-Integral"
+                                      " (type NonIntegral)")
                 else:
                     self.fail("Failed to raise TypeError with %s" %
                               ((base, trunc_result_base),))
@@ -643,10 +642,6 @@ class IntStrDigitLimitsTests(unittest.TestCase):
             huge_decimal = str(huge_int)
         seconds_to_convert = get_time() - start
         self.assertEqual(len(huge_decimal), digits)
-
-        if support.check_impl_detail(pypy=True):
-            raise unittest.SkipTest('"slow" conversion too fast on PyPy')
-
         # Ensuring that we chose a slow enough conversion to measure.
         # It takes 0.1 seconds on a Zen based cloud VM in an opt build.
         # Some OSes have a low res 1/64s timer, skip if hard to measure.

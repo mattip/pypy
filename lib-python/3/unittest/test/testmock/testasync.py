@@ -287,7 +287,6 @@ class AsyncSpecTest(unittest.TestCase):
             self.assertIsInstance(async_mock, mock_type)
             with assertNeverAwaited(self):
                 self.assertTrue(inspect.isawaitable(async_mock()))
-                gc.collect()
 
             sync_mock = mock_type(spec=normal_func)
             self.assertIsInstance(sync_mock, mock_type)
@@ -302,7 +301,6 @@ class AsyncSpecTest(unittest.TestCase):
             self.assertIsInstance(async_mock, mock_type)
             with assertNeverAwaited(self):
                 self.assertTrue(inspect.isawaitable(async_mock()))
-                gc.collect()
 
             sync_mock = mock_type(normal_func)
             self.assertIsInstance(sync_mock, mock_type)
@@ -748,7 +746,6 @@ class AsyncMockAssert(unittest.TestCase):
         mock = AsyncMock(AsyncClass)
         with assertNeverAwaited(self):
             mock.async_method()
-            gc.collect()
         self.assertTrue(iscoroutinefunction(mock.async_method))
         mock.async_method.assert_called()
         mock.async_method.assert_called_once()
@@ -792,7 +789,6 @@ class AsyncMockAssert(unittest.TestCase):
         # But this call will never get awaited, so it will warn here
         with assertNeverAwaited(self):
             mock.async_method()
-            gc.collect()
         with self.assertRaises(AssertionError):
             mock.async_method.assert_awaited()
         mock.async_method.assert_called()
@@ -828,7 +824,6 @@ class AsyncMockAssert(unittest.TestCase):
         kalls = [call('foo')]
         with assertNeverAwaited(self):
             self.mock('foo')
-            gc.collect()
         self.mock.assert_has_calls(kalls)
         with self.assertRaises(AssertionError):
             self.mock.assert_has_awaits(kalls)
@@ -836,7 +831,6 @@ class AsyncMockAssert(unittest.TestCase):
     def test_assert_has_mock_calls_on_async_mock_no_spec(self):
         with assertNeverAwaited(self):
             self.mock()
-            gc.collect()
         kalls_empty = [('', (), {})]
         self.assertEqual(self.mock.mock_calls, kalls_empty)
 
@@ -844,7 +838,6 @@ class AsyncMockAssert(unittest.TestCase):
             self.mock('foo')
         with assertNeverAwaited(self):
             self.mock('baz')
-            gc.collect()
         mock_kalls = ([call(), call('foo'), call('baz')])
         self.assertEqual(self.mock.mock_calls, mock_kalls)
 
@@ -852,14 +845,12 @@ class AsyncMockAssert(unittest.TestCase):
         a_class_mock = AsyncMock(AsyncClass)
         with assertNeverAwaited(self):
             a_class_mock.async_method()
-            gc.collect()
         kalls_empty = [('', (), {})]
         self.assertEqual(a_class_mock.async_method.mock_calls, kalls_empty)
         self.assertEqual(a_class_mock.mock_calls, [call.async_method()])
 
         with assertNeverAwaited(self):
             a_class_mock.async_method(1, 2, 3, a=4, b=5)
-            gc.collect()
         method_kalls = [call(), call(1, 2, 3, a=4, b=5)]
         mock_kalls = [call.async_method(), call.async_method(1, 2, 3, a=4, b=5)]
         self.assertEqual(a_class_mock.async_method.mock_calls, method_kalls)
@@ -870,7 +861,6 @@ class AsyncMockAssert(unittest.TestCase):
             self.mock.something(3, fish=None)
         with assertNeverAwaited(self):
             self.mock.something_else.something(6, cake=sentinel.Cake)
-            gc.collect()
 
         self.assertEqual(self.mock.method_calls, [
             ("something", (3,), {'fish': None}),
@@ -897,7 +887,6 @@ class AsyncMockAssert(unittest.TestCase):
             self.mock(1, 2)
         with assertNeverAwaited(self):
             self.mock(a=3)
-            gc.collect()
 
         self.mock.reset_mock()
         assert_attrs(self.mock)
@@ -907,7 +896,6 @@ class AsyncMockAssert(unittest.TestCase):
             a_mock.async_method()
         with assertNeverAwaited(self):
             a_mock.async_method(1, a=3)
-            gc.collect()
 
         a_mock.reset_mock()
         assert_attrs(a_mock)

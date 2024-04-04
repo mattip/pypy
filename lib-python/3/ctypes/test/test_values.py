@@ -4,7 +4,6 @@ A testcase which accesses *values* in a dll.
 
 import unittest
 import sys
-from test.support import cpython_only
 from ctypes import *
 
 import _ctypes_test
@@ -29,7 +28,6 @@ class ValuesTestCase(unittest.TestCase):
         ctdll = CDLL(_ctypes_test.__file__)
         self.assertRaises(ValueError, c_int.in_dll, ctdll, "Undefined_Symbol")
 
-@cpython_only
 class PythonValuesTestCase(unittest.TestCase):
     """This test only works when python itself is a dll/shared library"""
 

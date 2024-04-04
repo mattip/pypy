@@ -884,8 +884,6 @@ class GeneralModuleTests(unittest.TestCase):
 
     def testSendtoErrors(self):
         # Testing that sendto doesn't mask failures. See #10169.
-        # PyPy note: made the test accept broader messages: PyPy's
-        # messages are equivalent but worded differently.
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.addCleanup(s.close)
         s.bind(('', 0))
@@ -893,45 +891,40 @@ class GeneralModuleTests(unittest.TestCase):
         # 2 args
         with self.assertRaises(TypeError) as cm:
             s.sendto('\u2620', sockname)
-        self.assertIn(str(cm.exception),
-                      ["a bytes-like object is required, not 'str'", # cpython
-                       "a bytes-like object is required, not str"]) # pypy
+        self.assertEqual(str(cm.exception),
+                         "a bytes-like object is required, not 'str'")
         with self.assertRaises(TypeError) as cm:
             s.sendto(5j, sockname)
-        self.assertIn(str(cm.exception),
-                      ["a bytes-like object is required, not 'complex'",
-                       "a bytes-like object is required, not complex"])
+        self.assertEqual(str(cm.exception),
+                         "a bytes-like object is required, not 'complex'")
         with self.assertRaises(TypeError) as cm:
             s.sendto(b'foo', None)
-        self.assertIn('NoneType', str(cm.exception))
+        self.assertIn('not NoneType',str(cm.exception))
         # 3 args
         with self.assertRaises(TypeError) as cm:
             s.sendto('\u2620', 0, sockname)
-        self.assertIn(str(cm.exception),
-                      ["a bytes-like object is required, not 'str'",
-                       "a bytes-like object is required, not str"])
+        self.assertEqual(str(cm.exception),
+                         "a bytes-like object is required, not 'str'")
         with self.assertRaises(TypeError) as cm:
             s.sendto(5j, 0, sockname)
-        self.assertIn(str(cm.exception),
-                      ["a bytes-like object is required, not 'complex'",
-                       "a bytes-like object is required, not complex"])
+        self.assertEqual(str(cm.exception),
+                         "a bytes-like object is required, not 'complex'")
         with self.assertRaises(TypeError) as cm:
             s.sendto(b'foo', 0, None)
-        self.assertIn('NoneType', str(cm.exception))
+        self.assertIn('not NoneType', str(cm.exception))
         with self.assertRaises(TypeError) as cm:
             s.sendto(b'foo', 'bar', sockname)
-        self.assertIn('integer', str(cm.exception))
+        self.assertIn('an integer is required', str(cm.exception))
         with self.assertRaises(TypeError) as cm:
             s.sendto(b'foo', None, None)
-        self.assertIn('integer', str(cm.exception))
+        self.assertIn('an integer is required', str(cm.exception))
         # wrong number of args
         with self.assertRaises(TypeError) as cm:
             s.sendto(b'foo')
-        if support.check_impl_detail():
-            self.assertIn(' given)', str(cm.exception))
+        self.assertIn('(1 given)', str(cm.exception))
         with self.assertRaises(TypeError) as cm:
             s.sendto(b'foo', 0, sockname, 4)
-        self.assertIn(' given', str(cm.exception))
+        self.assertIn('(4 given)', str(cm.exception))
 
     def testCrucialConstants(self):
         # Testing for mission critical constants
@@ -1077,7 +1070,20 @@ class GeneralModuleTests(unittest.TestCase):
                          'socket.if_indextoname() not available.')
     def testInvalidInterfaceIndexToName(self):
         self.assertRaises(OSError, socket.if_indextoname, 0)
+        self.assertRaises(OverflowError, socket.if_indextoname, -1)
+        self.assertRaises(OverflowError, socket.if_indextoname, 2**1000)
         self.assertRaises(TypeError, socket.if_indextoname, '_DEADBEEF')
+        if hasattr(socket, 'if_nameindex'):
+            indices = dict(socket.if_nameindex())
+            for index in indices:
+                index2 = index + 2**32
+                if index2 not in indices:
+                    with self.assertRaises((OverflowError, OSError)):
+                        socket.if_indextoname(index2)
+            for index in 2**32-1, 2**64-1:
+                if index not in indices:
+                    with self.assertRaises((OverflowError, OSError)):
+                        socket.if_indextoname(index)
 
     @unittest.skipUnless(hasattr(socket, 'if_nametoindex'),
                          'socket.if_nametoindex() not available.')
@@ -1907,10 +1913,7 @@ class GeneralModuleTests(unittest.TestCase):
             socket.socket(socket.AF_INET, socket.SOCK_STREAM, fileno=42.5)
 
     def test_socket_fileno_rejects_other_types(self):
-        # PyPy is more helpful
-        # msg = "integer is required"
-        msg = "expected integer, got str object"
-        with self.assertRaisesRegex(TypeError, msg):
+        with self.assertRaisesRegex(TypeError, "integer is required"):
             socket.socket(socket.AF_INET, socket.SOCK_STREAM, fileno="foo")
 
     def test_socket_fileno_rejects_invalid_socket(self):
@@ -4971,7 +4974,6 @@ class UnbufferedFileObjectClassTestCase(FileObjectClassTestCase):
         self.write_file.write(self.write_msg)
         self.write_file.flush()
 
-    @support.refcount_test
     def testMakefileCloseSocketDestroy(self):
         refcount_before = sys.getrefcount(self.cli_conn)
         self.read_file.close()

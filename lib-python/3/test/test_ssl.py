@@ -592,7 +592,6 @@ class BasicSocketTests(unittest.TestCase):
         self.assertLessEqual(patch, 63)
         self.assertGreaterEqual(status, 0)
         self.assertLessEqual(status, 15)
-
         libressl_ver = f"LibreSSL {major:d}"
         if major >= 3:
             # 3.x uses 0xMNN00PP0L
@@ -1661,7 +1660,6 @@ class ContextTests(unittest.TestCase):
 
     @unittest.skipUnless(sys.platform == "win32", "Windows specific")
     @unittest.skipIf(hasattr(sys, "gettotalrefcount"), "Debug build does not share environment between CRTs")
-    @support.cpython_only
     def test_load_default_certs_env_windows(self):
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         ctx.load_default_certs()
@@ -2276,8 +2274,7 @@ class SimpleBackgroundTests(unittest.TestCase):
                               SIGNED_CERTFILE_HOSTNAME)
         self.assertIs(sslobj._sslobj.owner, sslobj)
         self.assertIsNone(sslobj.cipher())
-        # cypthon implementation detail
-        # self.assertIsNone(sslobj.version())
+        self.assertIsNone(sslobj.version())
         self.assertIsNotNone(sslobj.shared_ciphers())
         self.assertRaises(ValueError, sslobj.getpeercert)
         if 'tls-unique' in ssl.CHANNEL_BINDING_TYPES:
@@ -2556,14 +2553,6 @@ class ThreadedEchoServer(threading.Thread):
                             sys.stdout.write(err.args[1])
                         # test_pha_required_nocert is expecting this exception
                         raise ssl.SSLError('tlsv13 alert certificate required')
-                    if 'UNEXPECTED_EOF_WHILE_READING' == err.reason:
-                        # PyPy OpenSSL3 needs this, on CPython a
-                        # BrokenPipeError is raised which is caught as an
-                        # OSError. In this case do not stop the server.
-                        if self.server.chatty:
-                            handle_error("Test server failure:\n")
-                        self.close()
-                        self.running = False
                 except OSError:
                     if self.server.chatty:
                         handle_error("Test server failure:\n")
@@ -3684,15 +3673,11 @@ class ThreadedTests(unittest.TestCase):
             self.assertEqual(buffer, data)
 
             # sendall accepts bytes-like objects
-            try:
-                if ctypes is not None:
-                    ubyte = ctypes.c_ubyte * len(data)
-                    byteslike = ubyte.from_buffer_copy(data)
-                    s.sendall(byteslike)
-                    self.assertEqual(s.read(), data)
-            except:
-                s.close()
-                raise
+            if ctypes is not None:
+                ubyte = ctypes.c_ubyte * len(data)
+                byteslike = ubyte.from_buffer_copy(data)
+                s.sendall(byteslike)
+                self.assertEqual(s.read(), data)
 
             # Make sure sendmsg et al are disallowed to avoid
             # inadvertent disclosure of data and/or corruption

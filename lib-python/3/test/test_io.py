@@ -46,8 +46,6 @@ import io  # C implementation of io
 import _pyio as pyio # Python implementation of io
 
 try:
-    if '__pypy__' in sys.builtin_module_names:
-        raise ImportError    # don't use ctypes, missing ctypes.resize()
     import ctypes
 except ImportError:
     def byteslike(*pos, **kw):
@@ -1577,7 +1575,7 @@ class CBufferedReaderTest(BufferedReaderTest, SizeofTest):
 
     def test_args_error(self):
         # Issue #17275
-        with self.assertRaisesRegex(TypeError, "BufferedReader|__init__"):
+        with self.assertRaisesRegex(TypeError, "BufferedReader"):
             self.tp(io.BytesIO(), 1024, 1024, 1024)
 
 
@@ -1923,7 +1921,7 @@ class CBufferedWriterTest(BufferedWriterTest, SizeofTest):
 
     def test_args_error(self):
         # Issue #17275
-        with self.assertRaisesRegex(TypeError, "BufferedWriter|__init__"):
+        with self.assertRaisesRegex(TypeError, "BufferedWriter"):
             self.tp(io.BytesIO(), 1024, 1024, 1024)
 
 
@@ -2399,7 +2397,7 @@ class CBufferedRandomTest(BufferedRandomTest, SizeofTest):
 
     def test_args_error(self):
         # Issue #17275
-        with self.assertRaisesRegex(TypeError, "BufferedRandom|__init__"):
+        with self.assertRaisesRegex(TypeError, "BufferedRandom"):
             self.tp(io.BytesIO(), 1024, 1024, 1024)
 
 
@@ -3481,7 +3479,6 @@ class TextIOWrapperTest(unittest.TestCase):
         t = _make_very_illegal_wrapper((1, 2))
         self.assertRaises(TypeError, t.read, 42)
 
-    @support.impl_detail("PyPy does not call __del__ at shutdown", pypy=False)
     def _check_create_at_shutdown(self, **kwargs):
         # Issue #20037: creating a TextIOWrapper at shutdown
         # shouldn't crash the interpreter.

@@ -74,8 +74,7 @@ import os
 import builtins
 import _sitebuiltins
 import io
-
-is_pypy = sys.implementation.name == 'pypy'
+import stat
 
 # Prefixes for site-packages; add additional prefixes like /usr/local here
 PREFIXES = [sys.prefix, sys.exec_prefix]
@@ -159,6 +158,13 @@ def addpackage(sitedir, name, known_paths):
         reset = False
     fullname = os.path.join(sitedir, name)
     try:
+        st = os.lstat(fullname)
+    except OSError:
+        return
+    if ((getattr(st, 'st_flags', 0) & stat.UF_HIDDEN) or
+        (getattr(st, 'st_file_attributes', 0) & stat.FILE_ATTRIBUTE_HIDDEN)):
+        return
+    try:
         f = io.TextIOWrapper(io.open_code(fullname))
     except OSError:
         return
@@ -205,7 +211,8 @@ def addsitedir(sitedir, known_paths=None):
         names = os.listdir(sitedir)
     except OSError:
         return
-    names = [name for name in names if name.endswith(".pth")]
+    names = [name for name in names
+             if name.endswith(".pth") and not name.startswith(".")]
     for name in sorted(names):
         addpackage(sitedir, name, known_paths)
     if reset:
@@ -244,13 +251,6 @@ def check_enableusersite():
 #
 # See https://bugs.python.org/issue29585
 
-# Copy of sysconfig._get_implementation()
-def _get_implementation():
-    if is_pypy:
-        return 'PyPy'
-    return 'Python'
-
-
 # Copy of sysconfig._getuserbase()
 def _getuserbase():
     env_base = os.environ.get("PYTHONUSERBASE", None)
@@ -262,7 +262,7 @@ def _getuserbase():
 
     if os.name == "nt":
         base = os.environ.get("APPDATA") or "~"
-        return joinuser(base, _get_implementation())
+        return joinuser(base, "Python")
 
     if sys.platform == "darwin" and sys._framework:
         return joinuser("~", "Library", sys._framework,
@@ -275,15 +275,13 @@ def _getuserbase():
 def _get_path(userbase):
     version = sys.version_info
 
-    implementation = _get_implementation()
-    implementation_lower = implementation.lower()
     if os.name == 'nt':
-        return f'{userbase}\\{implementation}{version[0]}{version[1]}\\site-packages'
+        return f'{userbase}\\Python{version[0]}{version[1]}\\site-packages'
 
     if sys.platform == 'darwin' and sys._framework:
-        return f'{userbase}/lib/{implementation_lower}/site-packages'
+        return f'{userbase}/lib/python/site-packages'
 
-    return f'{userbase}/lib/{implementation_lower}{version[0]}.{version[1]}/site-packages'
+    return f'{userbase}/lib/python{version[0]}.{version[1]}/site-packages'
 
 
 def getuserbase():
@@ -344,17 +342,16 @@ def getsitepackages(prefixes=None):
         if not prefix or prefix in seen:
             continue
         seen.add(prefix)
+
         libdirs = [sys.platlibdir]
         if sys.platlibdir != "lib":
             libdirs.append("lib")
 
-        implementation = _get_implementation().lower()
-        ver = sys.version_info
         if os.sep == '/':
             for libdir in libdirs:
                 path = os.path.join(prefix, libdir,
-                                            f"{implementation}{ver[0]}.{ver[1]}",
-                                            "site-packages")
+                                    "python%d.%d" % sys.version_info[:2],
+                                    "site-packages")
                 sitepackages.append(path)
         else:
             sitepackages.append(prefix)
@@ -391,30 +388,26 @@ def setquit():
 def setcopyright():
     """Set 'copyright' and 'credits' in builtins"""
     builtins.copyright = _sitebuiltins._Printer("copyright", sys.copyright)
-    licenseargs = None
-    if is_pypy:
-        credits = "PyPy is maintained by the PyPy developers\nhttp://pypy.org/"
-        license = "See https://foss.heptapod.net/pypy/pypy/src/default/LICENSE"
-    elif sys.platform[:4] == 'java':
-        credits = ("Jython is maintained by the Jython developers "
-                   "(www.jython.org).")
+    if sys.platform[:4] == 'java':
+        builtins.credits = _sitebuiltins._Printer(
+            "credits",
+            "Jython is maintained by the Jython developers (www.jython.org).")
     else:
-        credits = """\
+        builtins.credits = _sitebuiltins._Printer("credits", """\
     Thanks to CWI, CNRI, BeOpen.com, Zope Corporation and a cast of thousands
-    for supporting Python development.  See www.python.org for more information."""
-    if licenseargs is None:
-        files, dirs = [], []
-        # Not all modules are required to have a __file__ attribute.  See
-        # PEP 420 for more details.
-        if hasattr(os, '__file__'):
-            here = os.path.dirname(os.__file__)
-            files.extend(["LICENSE.txt", "LICENSE"])
-            dirs.extend([os.path.join(here, os.pardir), here, os.curdir])
-        license = "See https://www.python.org/psf/license/"
-        licenseargs = (license, files, dirs)
+    for supporting Python development.  See www.python.org for more information.""")
+    files, dirs = [], []
+    # Not all modules are required to have a __file__ attribute.  See
+    # PEP 420 for more details.
+    if hasattr(os, '__file__'):
+        here = os.path.dirname(os.__file__)
+        files.extend(["LICENSE.txt", "LICENSE"])
+        dirs.extend([os.path.join(here, os.pardir), here, os.curdir])
+    builtins.license = _sitebuiltins._Printer(
+        "license",
+        "See https://www.python.org/psf/license/",
+        files, dirs)
 
-    builtins.credits = _sitebuiltins._Printer("credits", credits)
-    builtins.license = _sitebuiltins._Printer("license", *licenseargs)
 
 def sethelper():
     builtins.help = _sitebuiltins._Helper()
@@ -445,9 +438,7 @@ def enablerlcompleter():
             readline.parse_and_bind('tab: complete')
 
         try:
-            # Unimplemented on PyPy
-            #readline.read_init_file()
-            pass
+            readline.read_init_file()
         except OSError:
             # An OSError here could have many causes, but the most likely one
             # is that there's no .inputrc file (or .editrc file in the case of

@@ -59,7 +59,7 @@ def_op('ROT_TWO', 2)
 def_op('ROT_THREE', 3)
 def_op('DUP_TOP', 4)
 def_op('DUP_TOP_TWO', 5)
-def_op('ROT_FOUR', 6) # not emitted by pypy
+def_op('ROT_FOUR', 6)
 
 def_op('NOP', 9)
 def_op('UNARY_POSITIVE', 10)
@@ -88,6 +88,7 @@ def_op('WITH_EXCEPT_START', 49)
 def_op('GET_AITER', 50)
 def_op('GET_ANEXT', 51)
 def_op('BEFORE_ASYNC_WITH', 52)
+
 def_op('END_ASYNC_FOR', 54)
 def_op('INPLACE_ADD', 55)
 def_op('INPLACE_SUBTRACT', 56)
@@ -117,12 +118,12 @@ def_op('INPLACE_XOR', 78)
 def_op('INPLACE_OR', 79)
 
 def_op('LIST_TO_TUPLE', 82)
-
 def_op('RETURN_VALUE', 83)
 def_op('IMPORT_STAR', 84)
 def_op('SETUP_ANNOTATIONS', 85)
 def_op('YIELD_VALUE', 86)
 def_op('POP_BLOCK', 87)
+
 def_op('POP_EXCEPT', 89)
 
 HAVE_ARGUMENT = 90              # Opcodes from here have an argument:
@@ -161,7 +162,6 @@ name_op('LOAD_GLOBAL', 116)     # Index in name list
 def_op('IS_OP', 117)
 def_op('CONTAINS_OP', 118)
 
-jrel_op('SETUP_EXCEPT', 120)    # ""
 jabs_op('JUMP_IF_NOT_EXC_MATCH', 121)
 jrel_op('SETUP_FINALLY', 122)   # Distance to target address
 
@@ -209,14 +209,9 @@ def_op('BUILD_STRING', 157)
 name_op('LOAD_METHOD', 160)
 def_op('CALL_METHOD', 161)
 
-def_op('LIST_EXTEND', 164)
-def_op('SET_UPDATE', 165)
-def_op('DICT_MERGE', 166)
-def_op('DICT_UPDATE', 167)
-
-# pypy modification, experimental bytecode
-def_op('BUILD_LIST_FROM_ARG', 203)
-def_op('CALL_METHOD_KW', 204)
-def_op('LOAD_REVDB_VAR', 205)         # reverse debugger (syntax example: $5)
+def_op('LIST_EXTEND', 162)
+def_op('SET_UPDATE', 163)
+def_op('DICT_MERGE', 164)
+def_op('DICT_UPDATE', 165)
 
 del def_op, name_op, jrel_op, jabs_op

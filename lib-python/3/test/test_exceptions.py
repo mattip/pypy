@@ -176,8 +176,7 @@ class ExceptionTests(unittest.TestCase):
 
         # should not apply to subclasses, see issue #31161
         s = '''if True:\nprint "No indent"'''
-        # Changed for PyPy
-        ckmsg(s, "expected an indented block after if", IndentationError)
+        ckmsg(s, "expected an indented block", IndentationError)
 
         s = '''if True:\n        print()\n\texec "mixed tabs and spaces"'''
         ckmsg(s, "inconsistent use of tabs and spaces in indentation", TabError)
@@ -199,11 +198,10 @@ class ExceptionTests(unittest.TestCase):
         check('"\\\n"(1 for c in I,\\\n\\', 3, 22)
 
     def testSyntaxErrorOffset(self):
-        is_pypy = check_impl_detail(pypy=True)
         check = self.check
         check('def fact(x):\n\treturn x!\n', 2, 10)
         check('1 +\n', 1, 4)
-        check('def spam():\n  print(1)\n print(2)', 3, 2 if is_pypy else 10)
+        check('def spam():\n  print(1)\n print(2)', 3, 10)
         check('Python = "Python" +', 1, 20)
         check('Python = "\u1e54\xfd\u0163\u0125\xf2\xf1" +', 1, 20)
         check(b'# -*- coding: cp1251 -*-\nPython = "\xcf\xb3\xf2\xee\xed" +',
@@ -518,11 +516,10 @@ class ExceptionTests(unittest.TestCase):
             self.fail("No exception raised")
 
     def testInvalidAttrs(self):
-        delerrs = (AttributeError, TypeError)
         self.assertRaises(TypeError, setattr, Exception(), '__cause__', 1)
-        self.assertRaises(delerrs, delattr, Exception(), '__cause__')
+        self.assertRaises(TypeError, delattr, Exception(), '__cause__')
         self.assertRaises(TypeError, setattr, Exception(), '__context__', 1)
-        self.assertRaises(delerrs, delattr, Exception(), '__context__')
+        self.assertRaises(TypeError, delattr, Exception(), '__context__')
 
     def testNoneClearsTracebackAttr(self):
         try:
@@ -1258,7 +1255,6 @@ class ExceptionTests(unittest.TestCase):
                       b'while normalizing an exception', err)
         self.assertIn(b'Done.', out)
 
-    @cpython_only
     def test_recursion_in_except_handler(self):
 
         def set_relative_recursion_limit(n):
@@ -1470,12 +1466,7 @@ class ExceptionTests(unittest.TestCase):
                 self.assertIn("raise exc", report)
                 self.assertIn(exc_type.__name__, report)
                 if exc_type is BrokenStrException:
-                    if check_impl_detail(pypy=False):
-                        self.assertIn("<exception str() failed>", report)
-                    else:
-                        # pypy: this is what lib-python's traceback.py gives
-                        self.assertIn("<unprintable BrokenStrException object>",
-                                      report)
+                    self.assertIn("<exception str() failed>", report)
                 else:
                     self.assertIn("test message", report)
                 self.assertTrue(report.endswith("\n"))

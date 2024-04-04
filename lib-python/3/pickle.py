@@ -35,24 +35,12 @@ import re
 import io
 import codecs
 import _compat_pickle
-try:
-    from __pypy__.builders import BytesBuilder
-except ImportError:
-    class BytesBuilder():
-        def __init__(self):
-            self.builder = io.BytesIO()
-        def __len__(self):
-            return self.builder.tell()
-        def build(self):
-            return self.builder.getbuffer()
-        def append(self, data):
-            self.builder.write(data)
- 
+
 __all__ = ["PickleError", "PicklingError", "UnpicklingError", "Pickler",
            "Unpickler", "dump", "dumps", "load", "loads"]
 
 try:
-    from __pypy__ import PickleBuffer
+    from _pickle import PickleBuffer
     __all__.append("PickleBuffer")
     _HAVE_PICKLE_BUFFER = True
 except ImportError:
@@ -219,18 +207,18 @@ class _Framer:
         self.current_frame = None
 
     def start_framing(self):
-        self.current_frame = BytesBuilder()
+        self.current_frame = io.BytesIO()
 
     def end_framing(self):
-        if self.current_frame and len(self.current_frame) > 0:
+        if self.current_frame and self.current_frame.tell() > 0:
             self.commit_frame(force=True)
             self.current_frame = None
 
     def commit_frame(self, force=False):
-        if self.current_frame is not None:
+        if self.current_frame:
             f = self.current_frame
-            if len(f) >= self._FRAME_SIZE_TARGET or force:
-                data = f.build()
+            if f.tell() >= self._FRAME_SIZE_TARGET or force:
+                data = f.getbuffer()
                 write = self.file_write
                 if len(data) >= self._FRAME_SIZE_MIN:
                     # Issue a single call to the write method of the underlying
@@ -244,16 +232,15 @@ class _Framer:
                 # memory copy.
                 write(data)
 
-                # Start the new frame with a new BytesBuilder instance so that
+                # Start the new frame with a new io.BytesIO instance so that
                 # the file object can have delayed access to the previous frame
                 # contents via an unreleased memoryview of the previous
-                # BytesBuilder instance.
-                self.current_frame = BytesBuilder()
+                # io.BytesIO instance.
+                self.current_frame = io.BytesIO()
 
     def write(self, data):
-        if self.current_frame is not None:
-            self.current_frame.append(data)
-            return len(data)
+        if self.current_frame:
+            return self.current_frame.write(data)
         else:
             return self.file_write(data)
 
@@ -831,7 +818,6 @@ class _Pickler:
             self._write_large_bytes(BYTEARRAY8 + pack("<Q", n), obj)
         else:
             self.write(BYTEARRAY8 + pack("<Q", n) + obj)
-        self.memoize(obj)
     dispatch[bytearray] = save_bytearray
 
     if _HAVE_PICKLE_BUFFER:
@@ -1806,15 +1792,6 @@ except ImportError:
 def _test():
     import doctest
     return doctest.testmod()
-
-# ===== PyPy modification to support pickling cpyext methods =====
-try:
-    import cpyext
-except ImportError:
-    pass
-else:
-    Pickler.dispatch[cpyext.FunctionType] = Pickler.save_global
-# ================= end of PyPy modification ====================
 
 if __name__ == "__main__":
     import argparse

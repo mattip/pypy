@@ -40,9 +40,7 @@ else:
 # Otherwise import prints noise on stderr
 openssl_hashlib = import_fresh_module('hashlib', fresh=['_hashlib'])
 if builtin_hashes == default_builtin_hashes:
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        builtin_hashlib = import_fresh_module('hashlib', blocked=['_hashlib'])
+    builtin_hashlib = import_fresh_module('hashlib', blocked=['_hashlib'])
 else:
     builtin_hashlib = None
 
@@ -502,7 +500,7 @@ class HashLibTestCase(unittest.TestCase):
     @unittest.skipIf(sys.maxsize < _4G - 1, 'test cannot run on 32-bit systems')
     @bigmemtest(size=_4G - 1, memuse=1, dry_run=False)
     def test_sha3_update_overflow(self, size):
-        """Regression test for cpython gh-98517 CVE-2022-37454."""
+        """Regression test for gh-98517 CVE-2022-37454."""
         h = hashlib.sha3_224()
         h.update(b'\x01')
         h.update(b'\x01'*0xffff_ffff)

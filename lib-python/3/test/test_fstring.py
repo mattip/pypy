@@ -10,7 +10,6 @@
 import ast
 import os
 import re
-import sys
 import types
 import decimal
 import unittest
@@ -349,10 +348,8 @@ non-important content
         self.assertEqual(binop.lineno, 4)
         self.assertEqual(binop.left.lineno, 4)
         self.assertEqual(binop.right.lineno, 6)
-        # the cpython value is wrong, it needs to be 3 not 4 in the next two
-        # lines
-        self.assertEqual(binop.col_offset, 3)
-        self.assertEqual(binop.left.col_offset, 3)
+        self.assertEqual(binop.col_offset, 4)
+        self.assertEqual(binop.left.col_offset, 4)
         self.assertEqual(binop.right.col_offset, 7)
 
     def test_ast_line_numbers_with_parentheses(self):
@@ -371,7 +368,6 @@ x = (
         self.assertEqual(call.col_offset, 8)
         self.assertEqual(call.end_col_offset, 15)
 
-        return # pypy the rest of the test is quite arbitrary
         expr = """
 x = (
         'PERL_MM_OPT', (
@@ -687,7 +683,7 @@ x = (
                             ["f'{3)+(4}'",
                              ])
 
-        self.assertAllRaise(SyntaxError, r'end of line \(EOL\) while scanning string literal',
+        self.assertAllRaise(SyntaxError, 'EOL while scanning string literal',
                             ["f'{\n}'",
                              ])
 
@@ -954,10 +950,10 @@ x = (
                              "Bf''",
                              "BF''",]
         double_quote_cases = [case.replace("'", '"') for case in single_quote_cases]
-        # PyPy change: producing "invalid syntax" sounds better than the weird
-        # thing about EOF
         error_msg = (
             'invalid syntax'
+            if use_old_parser()
+            else 'unexpected EOF while parsing'
         )
         self.assertAllRaise(SyntaxError, error_msg,
                             single_quote_cases + double_quote_cases)
@@ -1288,10 +1284,7 @@ x = (
         self.assertEqual(x, 10)
 
     def test_invalid_syntax_error_message(self):
-        if sys.implementation.name == 'pypy':
-            err_msg = "f-string: Unknown character"
-        else:
-            err_msg = "invalid syntax" if use_old_parser() else "f-string: invalid syntax"
+        err_msg = "invalid syntax" if use_old_parser() else "f-string: invalid syntax"
         with self.assertRaisesRegex(SyntaxError, err_msg):
             compile("f'{a $ b}'", "?", "exec")
 

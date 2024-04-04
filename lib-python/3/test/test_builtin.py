@@ -29,7 +29,7 @@ from operator import neg
 from test import support
 from test.support import (
     EnvironmentVarGuard, TESTFN, check_warnings, swap_attr, unlink,
-    maybe_get_event_loop_policy, cpython_only, check_impl_detail)
+    maybe_get_event_loop_policy)
 from test.support.script_helper import assert_python_ok
 from unittest.mock import MagicMock, patch
 try:
@@ -722,20 +722,18 @@ class BuiltinTest(unittest.TestCase):
         self.assertEqual((g, l), ({'a': 1}, {'b': 2}))
 
     def test_exec_globals(self):
-        if check_impl_detail():
-            # strict __builtins__ compliance (CPython)
-            code = compile("print('Hello World!')", "", "exec")
-            # no builtin function
-            self.assertRaisesRegex(NameError, "name 'print' is not defined",
-                                   exec, code, {'__builtins__': {}})
-            # __builtins__ must be a mapping type
-            self.assertRaises(TypeError,
-                              exec, code, {'__builtins__': 123})
+        code = compile("print('Hello World!')", "", "exec")
+        # no builtin function
+        self.assertRaisesRegex(NameError, "name 'print' is not defined",
+                               exec, code, {'__builtins__': {}})
+        # __builtins__ must be a mapping type
+        self.assertRaises(TypeError,
+                          exec, code, {'__builtins__': 123})
 
-            # no __build_class__ function
-            code = compile("class A: pass", "", "exec")
-            self.assertRaisesRegex(NameError, "__build_class__ not found",
-                                   exec, code, {'__builtins__': {}})
+        # no __build_class__ function
+        code = compile("class A: pass", "", "exec")
+        self.assertRaisesRegex(NameError, "__build_class__ not found",
+                               exec, code, {'__builtins__': {}})
 
         class frozendict_error(Exception):
             pass
@@ -1019,12 +1017,10 @@ class BuiltinTest(unittest.TestCase):
         self.assertEqual(max(1, 2.0, 3), 3)
         self.assertEqual(max(1.0, 2, 3), 3)
 
-        if sys.implementation.name == 'pypy':
-            msg = "max\(\) expects at least one argument, got 0"
-        else:
-            msg = "max expected at least 1 argument, got 0"
-            
-        with self.assertRaisesRegex(TypeError, msg):
+        with self.assertRaisesRegex(
+            TypeError,
+            'max expected at least 1 argument, got 0'
+        ):
             max()
 
         self.assertRaises(TypeError, max, 42)
@@ -1080,12 +1076,10 @@ class BuiltinTest(unittest.TestCase):
         self.assertEqual(min(1, 2.0, 3), 1)
         self.assertEqual(min(1.0, 2, 3), 1.0)
 
-        if sys.implementation.name == 'pypy':
-            msg = "min\(\) expects at least one argument, got 0"
-        else:
-            msg = "max expected at least 1 argument, got 0"
-
-        with self.assertRaisesRegex(TypeError, msg):
+        with self.assertRaisesRegex(
+            TypeError,
+            'min expected at least 1 argument, got 0'
+        ):
             min()
 
         self.assertRaises(TypeError, min, 42)
@@ -1601,7 +1595,6 @@ class BuiltinTest(unittest.TestCase):
             z1 = zip(a, b)
             self.check_iter_pickle(z1, t, proto)
 
-    @cpython_only
     def test_zip_bad_iterable(self):
         exception = TypeError()
 
@@ -2067,8 +2060,6 @@ class TestSorted(unittest.TestCase):
 
 class ShutdownTest(unittest.TestCase):
 
-    # PyPy doesn't do a gc.collect() at shutdown
-    @cpython_only
     def test_cleanup(self):
         # Issue #19255: builtins are still available at shutdown
         code = """if 1:
@@ -2191,9 +2182,8 @@ class TestType(unittest.TestCase):
         for doc in 'x', '\xc4', '\U0001f40d', 'x\x00y', b'x', 42, None:
             A = type('A', (), {'__doc__': doc})
             self.assertEqual(A.__doc__, doc)
-        if check_impl_detail():     # CPython encodes __doc__ into tp_doc
-            with self.assertRaises(UnicodeEncodeError):
-                type('A', (), {'__doc__': 'x\udcdcy'})
+        with self.assertRaises(UnicodeEncodeError):
+            type('A', (), {'__doc__': 'x\udcdcy'})
 
         A = type('A', (), {})
         self.assertEqual(A.__doc__, None)
@@ -2224,9 +2214,8 @@ class TestType(unittest.TestCase):
     def test_bad_slots(self):
         with self.assertRaises(TypeError):
             type('A', (), {'__slots__': b'x'})
-        if check_impl_detail():     # 'int' is variable-sized on CPython 3.x
-            with self.assertRaises(TypeError):
-                type('A', (int,), {'__slots__': 'x'})
+        with self.assertRaises(TypeError):
+            type('A', (int,), {'__slots__': 'x'})
         with self.assertRaises(TypeError):
             type('A', (), {'__slots__': ''})
         with self.assertRaises(TypeError):

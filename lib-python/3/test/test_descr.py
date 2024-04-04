@@ -1041,21 +1041,20 @@ order (MRO) for bases """
         self.assertEqual(x.__dict__, {'foo': 1})
 
     def test_object_class_assignment_between_heaptypes_and_nonheaptypes(self):
-        if support.check_impl_detail(pypy=False):
-            class SubType(types.ModuleType):
-                a = 1
+        class SubType(types.ModuleType):
+            a = 1
 
-            m = types.ModuleType("m")
-            self.assertTrue(m.__class__ is types.ModuleType)
-            self.assertFalse(hasattr(m, "a"))
+        m = types.ModuleType("m")
+        self.assertTrue(m.__class__ is types.ModuleType)
+        self.assertFalse(hasattr(m, "a"))
 
-            m.__class__ = SubType
-            self.assertTrue(m.__class__ is SubType)
-            self.assertTrue(hasattr(m, "a"))
+        m.__class__ = SubType
+        self.assertTrue(m.__class__ is SubType)
+        self.assertTrue(hasattr(m, "a"))
 
-            m.__class__ = types.ModuleType
-            self.assertTrue(m.__class__ is types.ModuleType)
-            self.assertFalse(hasattr(m, "a"))
+        m.__class__ = types.ModuleType
+        self.assertTrue(m.__class__ is types.ModuleType)
+        self.assertFalse(hasattr(m, "a"))
 
         # Make sure that builtin immutable objects don't support __class__
         # assignment, because the object instances may be interned.
@@ -1275,7 +1274,7 @@ order (MRO) for bases """
         self.assertEqual(Counted.counter, 0)
 
         # Test lookup leaks [SF bug 572567]
-        if hasattr(gc, 'get_objects') and support.check_impl_detail(pypy=False):
+        if hasattr(gc, 'get_objects'):
             class G(object):
                 def __eq__(self, other):
                     return False
@@ -1759,8 +1758,7 @@ order (MRO) for bases """
         self.assertEqual(b.foo, 3)
         self.assertEqual(b.__class__, D)
 
-    #@unittest.expectedFailure --- on CPython.  On PyPy, the test passes
-    @support.impl_detail(cpython=False)
+    @unittest.expectedFailure
     def test_bad_new(self):
         self.assertRaises(TypeError, object.__new__)
         self.assertRaises(TypeError, object.__new__, '')
@@ -1807,8 +1805,7 @@ order (MRO) for bases """
         object.__init__(A(3))
         self.assertRaises(TypeError, object.__init__, A(3), 5)
 
-    # Does not fail on PyPy
-    # @unittest.expectedFailure
+    @unittest.expectedFailure
     def test_restored_object_new(self):
         class A(object):
             def __new__(cls, *args, **kwargs):
@@ -2040,6 +2037,7 @@ order (MRO) for bases """
             ("__reversed__", reversed, empty_seq, set(), {}),
             ("__length_hint__", list, zero, set(),
              {"__iter__" : iden, "__next__" : stop}),
+            ("__sizeof__", sys.getsizeof, zero, set(), {}),
             ("__instancecheck__", do_isinstance, return_true, set(), {}),
             ("__missing__", do_dict_missing, some_number,
              set(("__class__",)), {}),
@@ -2056,8 +2054,6 @@ order (MRO) for bases """
             ("__dir__", dir, empty_seq, set(), {}),
             ("__round__", round, zero, set(), {}),
             ]
-        if support.check_impl_detail():
-            specials.append(("__sizeof__", sys.getsizeof, zero, set(), {}))
 
         class Checker(object):
             def __getattr__(self, attr, test=self):
@@ -2220,8 +2216,7 @@ order (MRO) for bases """
         except TypeError as msg:
             self.assertIn("weak reference", str(msg))
         else:
-            if support.check_impl_detail(pypy=False):
-                self.fail("weakref.ref(no) should be illegal")
+            self.fail("weakref.ref(no) should be illegal")
         class Weak(object):
             __slots__ = ['foo', '__weakref__']
         yes = Weak()
@@ -3298,24 +3293,15 @@ order (MRO) for bases """
         class R(J):
             __slots__ = ["__dict__", "__weakref__"]
 
-        if support.check_impl_detail(pypy=False):
-            lst = ((G, H), (G, I), (I, H), (Q, R), (R, Q))
-        else:
-            # Not supported in pypy: changing the __class__ of an object
-            # to another __class__ that just happens to have the same slots.
-            # If needed, we can add the feature, but what we'll likely do
-            # then is to allow mostly any __class__ assignment, even if the
-            # classes have different __slots__, because we it's easier.
-            lst = ((Q, R), (R, Q))
-        for cls, cls2 in lst:
+        for cls, cls2 in ((G, H), (G, I), (I, H), (Q, R), (R, Q)):
             x = cls()
             x.a = 1
             x.__class__ = cls2
-            self.assertTrue(x.__class__ is cls2,
+            self.assertIs(x.__class__, cls2,
                    "assigning %r as __class__ for %r silently failed" % (cls2, x))
             self.assertEqual(x.a, 1)
             x.__class__ = cls
-            self.assertTrue(x.__class__ is cls,
+            self.assertIs(x.__class__, cls,
                    "assigning %r as __class__ for %r silently failed" % (cls, x))
             self.assertEqual(x.a, 1)
         for cls in G, J, K, L, M, N, P, R, list, Int:
@@ -3390,8 +3376,7 @@ order (MRO) for bases """
             except TypeError:
                 pass
             else:
-                if support.check_impl_detail(pypy=False):
-                    self.fail("%r's __dict__ can be modified" % cls)
+                self.fail("%r's __dict__ can be modified" % cls)
 
         # Modules also disallow __dict__ assignment
         class Module1(types.ModuleType, Base):
@@ -4355,7 +4340,6 @@ order (MRO) for bases """
         except TypeError:
             self.fail("setattr through direct base types should be legal")
 
-    @support.impl_detail("this is only unsafe on CPython")
     def test_carloverre_multi_inherit_invalid(self):
         class A(type):
             def __setattr__(cls, key, value):
@@ -4446,10 +4430,7 @@ order (MRO) for bases """
         c = C()
         c.__dict__[Evil()] = 0
 
-        try:
-            self.assertEqual(c.attr, 1)
-        except AttributeError:  # when Evil.__eq__ is called twice
-            pass
+        self.assertEqual(c.attr, 1)
         # this makes a crash more likely:
         support.gc_collect()
         self.assertNotHasAttr(c, 'attr')
@@ -4489,8 +4470,7 @@ order (MRO) for bases """
         self.assertNotOrderable(l.__add__, l.__add__)
         self.assertEqual(l.__add__.__name__, '__add__')
         self.assertIs(l.__add__.__self__, l)
-        if sys.implementation.name != 'pypy':
-            self.assertIs(l.__add__.__objclass__, list)
+        self.assertIs(l.__add__.__objclass__, list)
         self.assertEqual(l.__add__.__doc__, list.__add__.__doc__)
         # hash([].__add__) should not be based on hash([])
         hash(l.__add__)
@@ -4509,9 +4489,7 @@ order (MRO) for bases """
         self.assertNotOrderable(l.append, l.append)
         self.assertEqual(l.append.__name__, 'append')
         self.assertIs(l.append.__self__, l)
-        if sys.implementation.name != 'pypy':
-            pass
-            # self.assertIs(l.append.__objclass__, list) --- could be added?
+        # self.assertIs(l.append.__objclass__, list) --- could be added?
         self.assertEqual(l.append.__doc__, list.append.__doc__)
         # hash([].append) should not be based on hash([])
         hash(l.append)
@@ -4524,8 +4502,7 @@ order (MRO) for bases """
         self.assertTrue(list.__add__ != list.__mul__)
         self.assertNotOrderable(list.__add__, list.__add__)
         self.assertEqual(list.__add__.__name__, '__add__')
-        if sys.implementation.name != 'pypy':
-            self.assertIs(list.__add__.__objclass__, list)
+        self.assertIs(list.__add__.__objclass__, list)
 
         # Testing objects of <type 'method_descriptor'>...
         self.assertTrue(list.append == list.append)
@@ -4534,8 +4511,7 @@ order (MRO) for bases """
         self.assertTrue(list.append != list.pop)
         self.assertNotOrderable(list.append, list.append)
         self.assertEqual(list.append.__name__, 'append')
-        if sys.implementation.name != 'pypy':
-            self.assertIs(list.append.__objclass__, list)
+        self.assertIs(list.append.__objclass__, list)
 
     def test_not_implemented(self):
         # Testing NotImplemented...
@@ -4747,7 +4723,7 @@ order (MRO) for bases """
         with self.assertRaises(TypeError) as cm:
             type(list).__dict__["__doc__"].__set__(list, "blah")
         self.assertIn("can't set list.__doc__", str(cm.exception))
-        with self.assertRaises((AttributeError, TypeError)) as cm:
+        with self.assertRaises(TypeError) as cm:
             type(X).__dict__["__doc__"].__delete__(X)
         self.assertIn("can't delete X.__doc__", str(cm.exception))
         self.assertEqual(X.__doc__, "banana")
@@ -4758,16 +4734,9 @@ order (MRO) for bases """
 
         # make sure we have an example of each type of descriptor
         for d, n in zip(descriptors, types):
-            if (support.check_impl_detail(pypy=True) and
-                n in ('method', 'member', 'wrapper')):
-                # PyPy doesn't have these
-                continue
             self.assertEqual(type(d).__name__, n + '_descriptor')
 
         for d in descriptors:
-            if (support.check_impl_detail(pypy=True) and
-                not hasattr(d, '__objclass__')):
-                continue
             qualname = d.__objclass__.__qualname__ + '.' + d.__name__
             self.assertEqual(d.__qualname__, qualname)
 
@@ -4778,7 +4747,7 @@ order (MRO) for bases """
 
         class X:
             pass
-        with self.assertRaises((AttributeError, TypeError)):
+        with self.assertRaises(TypeError):
             del X.__qualname__
 
         self.assertRaises(TypeError, type.__dict__['__qualname__'].__set__,
@@ -4899,8 +4868,7 @@ order (MRO) for bases """
         self.assertRegex(repr(method),
             r"<bound method qualname of <object object at .*>>")
 
-    @unittest.skipIf(_testcapi is None or not getattr(_testcapi, 'bad_get', None),
-                    'need the _testcapi module')
+    @unittest.skipIf(_testcapi is None, 'need the _testcapi module')
     def test_bpo25750(self):
         # bpo-25750: calling a descriptor (implemented as built-in
         # function with METH_FASTCALL) should not crash CPython if the
@@ -5003,7 +4971,6 @@ class AAAPTypesLongInitTest(unittest.TestCase):
 
 
 class MiscTests(unittest.TestCase):
-    @support.cpython_only
     def test_type_lookup_mro_reference(self):
         # Issue #14199: _PyType_Lookup() has to keep a strong reference to
         # the type MRO because it may be modified during the lookup, if

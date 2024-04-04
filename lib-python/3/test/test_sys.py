@@ -211,7 +211,6 @@ class SysModuleTest(unittest.TestCase):
         self.assertEqual(sys.getrecursionlimit(), 10000)
         sys.setrecursionlimit(oldlimit)
 
-    @test.support.cpython_only
     def test_recursionlimit_recovery(self):
         if hasattr(sys, 'gettrace') and sys.gettrace():
             self.skipTest('fatal error if run with a trace function')
@@ -334,7 +333,6 @@ class SysModuleTest(unittest.TestCase):
         )
 
     # sys._current_frames() is a CPython-only gimmick.
-    @test.support.impl_detail("current_frames")
     @test.support.reap_threads
     def test_current_frames(self):
         import threading
@@ -412,10 +410,7 @@ class SysModuleTest(unittest.TestCase):
         self.assertEqual(len(sys.float_info), 11)
         self.assertEqual(sys.float_info.radix, 2)
         self.assertEqual(len(sys.int_info), 4)
-        if test.support.check_impl_detail(cpython=True):
-            self.assertTrue(sys.int_info.bits_per_digit % 5 == 0)
-        else:
-            self.assertTrue(sys.int_info.bits_per_digit >= 1)
+        self.assertTrue(sys.int_info.bits_per_digit % 5 == 0)
         self.assertTrue(sys.int_info.sizeof_digit >= 1)
         self.assertGreaterEqual(sys.int_info.default_max_str_digits, 500)
         self.assertGreaterEqual(sys.int_info.str_digits_check_threshold, 100)
@@ -427,8 +422,7 @@ class SysModuleTest(unittest.TestCase):
         self.assertIsInstance(sys.int_info.str_digits_check_threshold, int)
         self.assertIsInstance(sys.hexversion, int)
 
-        if test.support.check_impl_detail(cpython=True):
-            self.assertEqual(len(sys.hash_info), 9)
+        self.assertEqual(len(sys.hash_info), 9)
         self.assertLess(sys.hash_info.modulus, 2**sys.hash_info.width)
         # sys.hash_info.modulus should be a prime; we do a quick
         # probable primality test (doesn't exclude the possibility of
@@ -443,23 +437,22 @@ class SysModuleTest(unittest.TestCase):
         self.assertIsInstance(sys.hash_info.inf, int)
         self.assertIsInstance(sys.hash_info.nan, int)
         self.assertIsInstance(sys.hash_info.imag, int)
-        if test.support.check_impl_detail(cpython=True):
-            algo = sysconfig.get_config_var("Py_HASH_ALGORITHM")
-            if sys.hash_info.algorithm in {"fnv", "siphash24"}:
-                self.assertIn(sys.hash_info.hash_bits, {32, 64})
-                self.assertIn(sys.hash_info.seed_bits, {32, 64, 128})
+        algo = sysconfig.get_config_var("Py_HASH_ALGORITHM")
+        if sys.hash_info.algorithm in {"fnv", "siphash24"}:
+            self.assertIn(sys.hash_info.hash_bits, {32, 64})
+            self.assertIn(sys.hash_info.seed_bits, {32, 64, 128})
 
-                if algo == 1:
-                    self.assertEqual(sys.hash_info.algorithm, "siphash24")
-                elif algo == 2:
-                    self.assertEqual(sys.hash_info.algorithm, "fnv")
-                else:
-                    self.assertIn(sys.hash_info.algorithm, {"fnv", "siphash24"})
+            if algo == 1:
+                self.assertEqual(sys.hash_info.algorithm, "siphash24")
+            elif algo == 2:
+                self.assertEqual(sys.hash_info.algorithm, "fnv")
             else:
-                # PY_HASH_EXTERNAL
-                self.assertEqual(algo, 0)
-            self.assertGreaterEqual(sys.hash_info.cutoff, 0)
-            self.assertLess(sys.hash_info.cutoff, 8)
+                self.assertIn(sys.hash_info.algorithm, {"fnv", "siphash24"})
+        else:
+            # PY_HASH_EXTERNAL
+            self.assertEqual(algo, 0)
+        self.assertGreaterEqual(sys.hash_info.cutoff, 0)
+        self.assertLess(sys.hash_info.cutoff, 8)
 
         self.assertIsInstance(sys.maxsize, int)
         self.assertIsInstance(sys.maxunicode, int)
@@ -824,14 +817,8 @@ class SysModuleTest(unittest.TestCase):
             ref = AtExit()
         """
         rc, stdout, stderr = assert_python_ok('-c', code)
-        if test.support.check_impl_detail(cpython=True):
-            self.assertEqual(stdout.rstrip(), b'True')
-        else:
-            # the __del__ method may or may not have been called
-            # in other Python implementations
-            self.assertIn(stdout.rstrip(), {b'True', b''})
+        self.assertEqual(stdout.rstrip(), b'True')
 
-    @test.support.cpython_only
     def test_issue20602(self):
         # sys.flags and sys.float_info were wiped during shutdown.
         code = """if 1:
@@ -844,10 +831,8 @@ class SysModuleTest(unittest.TestCase):
             """
         rc, out, err = assert_python_ok('-c', code)
         out = out.splitlines()
-        if out:
-            # PyPy will not print anything
-            self.assertIn(b'sys.flags', out[0])
-            self.assertIn(b'sys.float_info', out[1])
+        self.assertIn(b'sys.flags', out[0])
+        self.assertIn(b'sys.float_info', out[1])
 
     def test_sys_ignores_cleaning_up_user_data(self):
         code = """if 1:

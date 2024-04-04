@@ -2360,8 +2360,7 @@ class UnicodeTest(string_tests.CommonTest,
     def test_getnewargs(self):
         text = 'abc'
         args = text.__getnewargs__()
-        if support.check_impl_detail():
-            self.assertIsNot(args[0], text)
+        self.assertIsNot(args[0], text)
         self.assertEqual(args[0], text)
         self.assertEqual(len(args), 1)
 
@@ -2526,10 +2525,6 @@ class CAPITest(unittest.TestCase):
     # Test PyUnicode_FromFormat()
     def test_from_format(self):
         support.import_module('ctypes')
-        try:
-            from ctypes import pythonapi
-        except ImportError:
-            self.skipTest( "no pythonapi in ctypes")
         from ctypes import (
             c_char_p,
             pythonapi, py_object, sizeof,

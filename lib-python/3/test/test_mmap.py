@@ -175,7 +175,6 @@ class MmapTests(unittest.TestCase):
             with open(TESTFN, "rb") as fp:
                 self.assertEqual(fp.read(), b'a'*mapsize,
                                  "Readonly memory map data file was modified")
-            m.close()
 
         # Opening mmap with size too big
         with open(TESTFN, "r+b") as f:
@@ -241,10 +240,15 @@ class MmapTests(unittest.TestCase):
             # Try writing with PROT_EXEC and without PROT_WRITE
             prot = mmap.PROT_READ | getattr(mmap, 'PROT_EXEC', 0)
             with open(TESTFN, "r+b") as f:
-                m = mmap.mmap(f.fileno(), mapsize, prot=prot)
-                self.assertRaises(TypeError, m.write, b"abcdef")
-                self.assertRaises(TypeError, m.write_byte, 0)
-                m.close()
+                try:
+                    m = mmap.mmap(f.fileno(), mapsize, prot=prot)
+                except PermissionError:
+                    # on macOS 14, PROT_READ | PROT_WRITE is not allowed
+                    pass
+                else:
+                    self.assertRaises(TypeError, m.write, b"abcdef")
+                    self.assertRaises(TypeError, m.write_byte, 0)
+                    m.close()
 
     def test_bad_file_desc(self):
         # Try opening a bad file descriptor...
@@ -285,7 +289,6 @@ class MmapTests(unittest.TestCase):
         self.assertEqual(m.find(b'one', 1, -2), -1)
         self.assertEqual(m.find(bytearray(b'one')), 0)
 
-        m.close()
 
     def test_rfind(self):
         # test the new 'end' parameter works as expected
@@ -303,7 +306,6 @@ class MmapTests(unittest.TestCase):
         self.assertEqual(m.rfind(b'one', 1, -1), 8)
         self.assertEqual(m.rfind(b'one', 1, -2), -1)
         self.assertEqual(m.rfind(bytearray(b'one')), 8)
-        m.close()
 
 
     def test_double_close(self):
@@ -549,8 +551,7 @@ class MmapTests(unittest.TestCase):
         class anon_mmap(mmap.mmap):
             def __new__(klass, *args, **kwargs):
                 return mmap.mmap.__new__(klass, -1, *args, **kwargs)
-        m = anon_mmap(PAGESIZE)
-        m.close()
+        anon_mmap(PAGESIZE)
 
     @unittest.skipUnless(hasattr(mmap, 'PROT_READ'), "needs mmap.PROT_READ")
     def test_prot_readonly(self):
@@ -597,7 +598,6 @@ class MmapTests(unittest.TestCase):
         self.assertEqual(m.tell(), 9)
         self.assertEqual(m[:], b"012barbaz9")
         self.assertRaises(ValueError, m.write, b"ba")
-        m.close()
 
     def test_non_ascii_byte(self):
         for b in (129, 200, 255): # > 128
@@ -642,8 +642,6 @@ class MmapTests(unittest.TestCase):
         m2 = mmap.mmap(-1, 100, tagname=tagname)
         self.assertEqual(sys.getsizeof(m2),
                          sys.getsizeof(m1) + len(tagname) + 1)
-        m2.close()
-        m1.close()
 
     @unittest.skipUnless(os.name == 'nt', 'requires Windows')
     def test_crasher_on_windows(self):
@@ -792,9 +790,7 @@ class MmapTests(unittest.TestCase):
             m.madvise(mmap.MADV_NORMAL, size)
         with self.assertRaisesRegex(ValueError, "madvise start out of bounds"):
             m.madvise(mmap.MADV_NORMAL, -1)
-        # PyPy message is better: "madvise length can't be negative"
-        # with self.assertRaisesRegex(ValueError, "madvise length invalid"):
-        with self.assertRaisesRegex(ValueError, "madvise length"):
+        with self.assertRaisesRegex(ValueError, "madvise length invalid"):
             m.madvise(mmap.MADV_NORMAL, 0, -1)
         with self.assertRaisesRegex(OverflowError, "madvise length too large"):
             m.madvise(mmap.MADV_NORMAL, PAGESIZE, sys.maxsize)

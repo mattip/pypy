@@ -99,9 +99,8 @@ Verify that parenthesis are required in a statement
     SyntaxError: invalid syntax
 
 Verify that parenthesis are required when used as a keyword argument value
-PyPy has extended sytax error messages, ignore the detail for compatibility
 
-    >>> dict(a = i for i in range(10)) # doctest: +IGNORE_EXCEPTION_DETAIL
+    >>> dict(a = i for i in range(10))
     Traceback (most recent call last):
        ...
     SyntaxError: invalid syntax
@@ -145,9 +144,8 @@ Verify late binding for the innermost for-expression
 
 Verify re-use of tuples (a side benefit of using genexps over listcomps)
 
-    >>> from test.support import check_impl_detail
     >>> tupleids = list(map(id, ((i,i) for i in range(10))))
-    >>> int(max(tupleids) - min(tupleids)) if check_impl_detail() else 0
+    >>> int(max(tupleids) - min(tupleids))
     0
 
 Verify that syntax error's are raised for genexps used as lvalues

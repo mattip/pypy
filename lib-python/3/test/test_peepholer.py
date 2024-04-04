@@ -1,6 +1,5 @@
 import dis
 import unittest
-from test.support import cpython_only
 
 from test.support.bytecode_helper import BytecodeTestCase
 
@@ -115,13 +114,10 @@ class TestTranforms(BytecodeTestCase):
         self.check_lnotab(f)
 
     def test_pack_unpack(self):
-        # On PyPy, "a, b = ..." is even more optimized, by removing
-        # the ROT_TWO.  But the ROT_TWO is not removed if assigning
-        # to more complex expressions, so check that.
         for line, elem in (
             ('a, = a,', 'LOAD_CONST',),
-            ('a[1], b = a, b', 'ROT_TWO',),
-            ('a, b[2], c = a, b, c', 'ROT_THREE',),
+            ('a, b = a, b', 'ROT_TWO',),
+            ('a, b, c = a, b, c', 'ROT_THREE',),
             ):
             code = compile(line,'','single')
             self.assertInBytecode(code, elem)
@@ -130,11 +126,10 @@ class TestTranforms(BytecodeTestCase):
             self.check_lnotab(code)
 
     def test_folding_of_tuples_of_constants(self):
-        # On CPython, "a,b,c=1,2,3" turns into "a,b,c=<constant (1,2,3)>"
-        # but on PyPy, it turns into "a=1;b=2;c=3".
         for line, elem in (
             ('a = 1,2,3', (1, 2, 3)),
             ('("a","b","c")', ('a', 'b', 'c')),
+            ('a,b,c = 1,2,3', (1, 2, 3)),
             ('(None, 1, None)', (None, 1, None)),
             ('((1, 2), 3, 4)', ((1, 2), 3, 4)),
             ):
@@ -252,14 +247,11 @@ class TestTranforms(BytecodeTestCase):
         self.assertInBytecode(code, 'LOAD_CONST', 1000)
         self.assertNotIn(1<<1000, code.co_consts)
         self.check_lnotab(code)
-        # difference to CPython: PyPy allows slightly larger constants to be
-        # created
-        code = compile('a=2**10000', '', 'single')
-        self.assertInBytecode(code, 'LOAD_CONST', 10000)
-        self.assertNotIn(2**10000, code.co_consts)
+        code = compile('a=2**1000', '', 'single')
+        self.assertInBytecode(code, 'LOAD_CONST', 1000)
+        self.assertNotIn(2**1000, code.co_consts)
         self.check_lnotab(code)
 
-    @cpython_only # we currently not bother to implement that
     def test_binary_subscr_on_unicode(self):
         # valid code get optimized
         code = compile('"foo"[0]', '', 'single')
@@ -461,14 +453,12 @@ class TestTranforms(BytecodeTestCase):
                 self.assertFalse(instr.opname.startswith('BUILD_'))
             self.check_lnotab(code)
 
-    @cpython_only
     def test_in_literal_list(self):
         def containtest():
             return x in [a, b]
         self.assertEqual(count_instr_recursively(containtest, 'BUILD_LIST'), 0)
         self.check_lnotab(containtest)
 
-    @cpython_only
     def test_iterate_literal_list(self):
         def forloop():
             for x in [a, b]:

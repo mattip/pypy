@@ -539,16 +539,16 @@ class StructTest(unittest.TestCase):
         self.assertRaises(struct.error, struct.pack, 'c12345', 'x')
         self.assertRaises(struct.error, struct.unpack, 'c12345', b'x')
         self.assertRaises(struct.error, struct.pack_into, 'c12345', store, 0,
-                           b'x')
+                           'x')
         self.assertRaises(struct.error, struct.unpack_from, 'c12345', store,
                            0)
 
         # Mixed format tests
-        self.assertRaises(struct.error, struct.pack, '14s42', b'spam and eggs')
+        self.assertRaises(struct.error, struct.pack, '14s42', 'spam and eggs')
         self.assertRaises(struct.error, struct.unpack, '14s42',
                           b'spam and eggs')
         self.assertRaises(struct.error, struct.pack_into, '14s42', store, 0,
-                          b'spam and eggs')
+                          'spam and eggs')
         self.assertRaises(struct.error, struct.unpack_from, '14s42', store, 0)
 
     def test_Struct_reinitialization(self):
@@ -653,7 +653,6 @@ class StructTest(unittest.TestCase):
         s2 = struct.Struct(s.format.encode())
         self.assertEqual(s2.format, s.format)
 
-    @support.impl_detail(pypy=False, msg="PyPy does not clean up at shutdown")
     def test_struct_cleans_up_at_runtime_shutdown(self):
         code = """if 1:
             import struct

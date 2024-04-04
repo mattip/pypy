@@ -1,7 +1,6 @@
 # Python test set -- part 6, built-in types
 
 from test.support import run_with_locale
-from test.support import impl_detail
 import collections.abc
 import inspect
 import pickle
@@ -574,7 +573,6 @@ class TypesTests(unittest.TestCase):
         for code in 'xXobns':
             self.assertRaises(ValueError, format, 0, ',' + code)
 
-    @impl_detail
     def test_internal_sizes(self):
         self.assertGreater(object.__basicsize__, 0)
         self.assertGreater(tuple.__itemsize__, 0)
@@ -591,7 +589,6 @@ class TypesTests(unittest.TestCase):
         self.assertIsInstance(object().__lt__, types.MethodWrapperType)
         self.assertIsInstance((42).__lt__, types.MethodWrapperType)
 
-    @impl_detail
     def test_method_descriptor_types(self):
         self.assertIsInstance(str.join, types.MethodDescriptorType)
         self.assertIsInstance(list.append, types.MethodDescriptorType)
@@ -1179,7 +1176,7 @@ class ClassCreationTests(unittest.TestCase):
             X = types.new_class("X", (int(), C))
 
     def test_one_argument_type(self):
-        expected_message = '.__new__() takes exactly 3 arguments (1 given)'
+        expected_message = 'type.__new__() takes exactly 3 arguments (1 given)'
 
         # Only type itself can use the one-argument form (#27157)
         self.assertIs(type(5), int)
@@ -1188,13 +1185,13 @@ class ClassCreationTests(unittest.TestCase):
             pass
         with self.assertRaises(TypeError) as cm:
             M(5)
-        self.assertIn(expected_message, str(cm.exception))
+        self.assertEqual(str(cm.exception), expected_message)
 
         class N(type, metaclass=M):
             pass
         with self.assertRaises(TypeError) as cm:
             N(5)
-        self.assertIn(expected_message, str(cm.exception))
+        self.assertEqual(str(cm.exception), expected_message)
 
 
 class SimpleNamespaceTests(unittest.TestCase):
@@ -1282,13 +1279,8 @@ class SimpleNamespaceTests(unittest.TestCase):
         ns2._y = 5
         name = "namespace"
 
-        if sys.implementation.name == 'pypy':
-            # PyPy sorts fields alphabetically
-            self.assertEqual(repr(ns1), "{name}(w=3, x=1, y=2)".format(name=name))
-            self.assertEqual(repr(ns2), "{name}(_y=5, x='spam')".format(name=name))
-        else:
-            self.assertEqual(repr(ns1), "{name}(x=1, y=2, w=3)".format(name=name))
-            self.assertEqual(repr(ns2), "{name}(x='spam', _y=5)".format(name=name))
+        self.assertEqual(repr(ns1), "{name}(x=1, y=2, w=3)".format(name=name))
+        self.assertEqual(repr(ns2), "{name}(x='spam', _y=5)".format(name=name))
 
     def test_equal(self):
         ns1 = types.SimpleNamespace(x=1)
@@ -1337,11 +1329,7 @@ class SimpleNamespaceTests(unittest.TestCase):
         ns3.spam = ns2
         name = "namespace"
         repr1 = "{name}(c='cookie', spam={name}(...))".format(name=name)
-        if sys.implementation.name == 'pypy':
-            # PyPy sorts fields alphabetically
-            repr2 = "{name}(spam={name}(spam={name}(...), x=1))".format(name=name)
-        else:
-            repr2 = "{name}(spam={name}(x=1, spam={name}(...)))".format(name=name)
+        repr2 = "{name}(spam={name}(x=1, spam={name}(...)))".format(name=name)
 
         self.assertEqual(repr(ns1), repr1)
         self.assertEqual(repr(ns2), repr2)
@@ -1644,10 +1632,8 @@ class CoroutineTests(unittest.TestCase):
 
         for name in ('__name__', '__qualname__', 'gi_code',
                      'gi_running', 'gi_frame'):
-            # pypy: changed assertIs() to assertEqual()
-            # because we don't guarantee identity on long strings
-            self.assertEqual(getattr(foo(), name),
-                             getattr(gen, name))
+            self.assertIs(getattr(foo(), name),
+                          getattr(gen, name))
         self.assertIs(foo().cr_code, gen.gi_code)
 
         self.assertEqual(next(wrapper), 1)

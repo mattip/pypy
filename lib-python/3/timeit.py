@@ -13,7 +13,7 @@ Command line usage:
 
 Options:
   -n/--number N: how many times to execute 'statement' (default: see below)
-  -r/--repeat N: how many times to repeat the timer (default 7)
+  -r/--repeat N: how many times to repeat the timer (default 5)
   -s/--setup S: statement to be executed once initially (default 'pass').
                 Execution time of this setup statement is NOT timed.
   -p/--process: use time.process_time() (default is time.perf_counter())
@@ -50,8 +50,6 @@ Functions:
 """
 
 import gc
-import math
-import os
 import sys
 import time
 import itertools
@@ -60,7 +58,7 @@ __all__ = ["Timer", "timeit", "repeat", "default_timer"]
 
 dummy_src_name = "<timeit-src>"
 default_number = 1000000
-default_repeat = 7
+default_repeat = 5
 default_timer = time.perf_counter
 
 _globals = globals
@@ -174,8 +172,7 @@ class Timer:
         """
         it = itertools.repeat(None, number)
         gcold = gc.isenabled()
-        if '__pypy__' not in sys.builtin_module_names:
-            gc.disable()    # only do that on CPython
+        gc.disable()
         try:
             timing = self.inner(it, self.timer)
         finally:
@@ -259,7 +256,6 @@ def main(args=None, *, _wrap_timer=None):
     """
     if args is None:
         args = sys.argv[1:]
-    origargs = args
     import getopt
     try:
         opts, args = getopt.getopt(args, "n:u:s:r:tcpvh",
@@ -307,17 +303,10 @@ def main(args=None, *, _wrap_timer=None):
             return 0
     setup = "\n".join(setup) or "pass"
 
-    print("WARNING: timeit is a very unreliable tool. use pyperf or something else for real measurements")
-    executable = os.path.basename(sys.executable)
-    print("%s -m pip install pyperf" % executable)
-    print("%s -m pyperf timeit %s" % (
-        executable,
-        " ".join([(arg if arg.startswith("-") else repr(arg))
-                        for arg in origargs]), ))
-    print("-" * 60)
     # Include the current directory, so that local imports work (sys.path
     # contains the directory of this script, rather than the current
     # directory)
+    import os
     sys.path.insert(0, os.curdir)
     if _wrap_timer is not None:
         timer = _wrap_timer(timer)
@@ -347,7 +336,7 @@ def main(args=None, *, _wrap_timer=None):
         t.print_exc()
         return 1
 
-    def format_time(dt, stdev=None):
+    def format_time(dt):
         unit = time_unit
 
         if unit is not None:
@@ -359,29 +348,17 @@ def main(args=None, *, _wrap_timer=None):
                 if dt >= scale:
                     break
 
-        if stdev is None:
-            return "%.*g %s" % (precision, dt / scale, unit)
-        else:
-            return "%.*g +- %.*g %s" % (precision, dt / scale,
-                                        precision, stdev / scale, unit)
+        return "%.*g %s" % (precision, dt / scale, unit)
 
     if verbose:
         print("raw times: %s" % ", ".join(map(format_time, raw_timings)))
         print()
-
     timings = [dt / number for dt in raw_timings]
 
-    def _avg(l):
-        return math.fsum(l) / len(l)
-    def _stdev(l):
-        avg = _avg(l)
-        return (math.fsum([(x - avg) ** 2 for x in l]) / len(l)) ** 0.5
-
-    average = _avg(timings)
-    stdev = _stdev(timings)
-
-    print("%s loops, average of %d: %s per loop (using standard deviation)"
-          % (number, repeat, format_time(average, stdev)))
+    best = min(timings)
+    print("%d loop%s, best of %d: %s per loop"
+          % (number, 's' if number != 1 else '',
+             repeat, format_time(best)))
 
     best = min(timings)
     worst = max(timings)

@@ -128,17 +128,17 @@ Check for duplicate keywords.
     ...
     Traceback (most recent call last):
     [...]
-    SyntaxError: keyword argument repeated: 'metaclass'
+    SyntaxError: keyword argument repeated: metaclass
     >>>
 
 Another way.
 
     >>> kwds = {'metaclass': type}
-    >>> class C(metaclass=type, **kwds): pass #doctest: +ELLIPSIS
+    >>> class C(metaclass=type, **kwds): pass
     ...
     Traceback (most recent call last):
     [...]
-    TypeError: ...got multiple values for keyword argument 'metaclass'
+    TypeError: __build_class__() got multiple values for keyword argument 'metaclass'
     >>>
 
 Use a __prepare__ method that returns an instrumented dict.

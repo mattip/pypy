@@ -1,7 +1,7 @@
 #-*- coding: iso-8859-1 -*-
 # pysqlite2/test/regression.py: pysqlite regression tests
 #
-# Copyright (C) 2006-2010 Gerhard Hï¿½ring <gh@ghaering.de>
+# Copyright (C) 2006-2010 Gerhard Häring <gh@ghaering.de>
 #
 # This file is part of pysqlite.
 #
@@ -131,7 +131,6 @@ class RegressionTests(unittest.TestCase):
         con.execute("create table foo(bar timestamp)")
         con.execute("insert into foo(bar) values (?)", (datetime.datetime.now(),))
         con.execute(SELECT).close()
-        support.gc_collect()  # PyPy change
         con.execute("drop table foo")
         con.execute("create table foo(bar integer)")
         con.execute("insert into foo(bar) values (5)")

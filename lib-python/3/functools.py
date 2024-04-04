@@ -20,10 +20,6 @@ from collections import namedtuple
 from reprlib import recursive_repr
 from _thread import RLock
 from types import GenericAlias
-try:
-    from __pypy__ import hidden_applevel
-except ImportError:
-    hidden_applevel = lambda f: f
 
 
 ################################################################################
@@ -207,7 +203,6 @@ def total_ordering(cls):
 ### cmp_to_key() function converter
 ################################################################################
 
-@hidden_applevel
 def cmp_to_key(mycmp):
     """Convert a cmp= function into a key= function"""
     class K(object):
@@ -239,7 +234,6 @@ except ImportError:
 
 _initial_missing = object()
 
-@hidden_applevel
 def reduce(function, sequence, initial=_initial_missing):
     """
     reduce(function, sequence[, initial]) -> value
@@ -289,9 +283,7 @@ class partial:
         if not callable(func):
             raise TypeError("the first argument must be callable")
 
-        # PyPy modification: the isinstance check is missing in cpython, see
-        # GH-100242
-        if isinstance(func, partial) and hasattr(func, "func"):
+        if hasattr(func, "func"):
             args = func.args + args
             keywords = {**func.keywords, **keywords}
             func = func.func
@@ -303,7 +295,6 @@ class partial:
         self.keywords = keywords
         return self
 
-    @hidden_applevel
     def __call__(self, /, *args, **keywords):
         keywords = {**self.keywords, **keywords}
         return self.func(*self.args, *args, **keywords)
@@ -345,9 +336,6 @@ class partial:
         self.func = func
         self.args = args
         self.keywords = kwds
-
-    def __class_getitem__(self, item):
-        return GenericAlias(self, item)
 
 try:
     from _functools import partial
@@ -647,7 +635,7 @@ def _lru_cache_wrapper(user_function, maxsize, typed, _CacheInfo):
 
     wrapper.cache_info = cache_info
     wrapper.cache_clear = cache_clear
-    return hidden_applevel(wrapper)
+    return wrapper
 
 try:
     from _functools import _lru_cache_wrapper

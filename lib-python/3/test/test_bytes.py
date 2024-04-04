@@ -18,7 +18,7 @@ import unittest
 import test.support
 import test.string_tests
 import test.list_tests
-from test.support import bigaddrspacetest, MAX_Py_ssize_t, cpython_only
+from test.support import bigaddrspacetest, MAX_Py_ssize_t
 from test.support.script_helper import assert_python_failure
 
 
@@ -1023,7 +1023,6 @@ class BytesTest(BaseBytesTest, unittest.TestCase):
         self.assertIs(type(BytesSubclass(A())), BytesSubclass)
 
     # Test PyBytes_FromFormat()
-    @cpython_only
     def test_from_format(self):
         ctypes = test.support.import_module('ctypes')
         _testcapi = test.support.import_module('_testcapi')
@@ -1367,13 +1366,9 @@ class ByteArrayTest(BaseBytesTest, unittest.TestCase):
     def test_del_expand(self):
         # Reducing the size should not expand the buffer (issue #23985)
         b = bytearray(10)
-        try:
-            size = sys.getsizeof(b)
-        except TypeError:
-            pass            # e.g. on pypy
-        else:
-            del b[:1]
-            self.assertLessEqual(sys.getsizeof(b), size)
+        size = sys.getsizeof(b)
+        del b[:1]
+        self.assertLessEqual(sys.getsizeof(b), size)
 
     def test_extended_set_del_slice(self):
         indices = (0, None, 1, 3, 19, 300, 1<<333, sys.maxsize,
@@ -1585,8 +1580,6 @@ class ByteArrayTest(BaseBytesTest, unittest.TestCase):
         self.assertEqual(b, b"")
         self.assertEqual(c, b"")
 
-    @test.support.impl_detail(
-        "resizing semantics of CPython rely on refcounting")
     def test_resize_forbidden(self):
         # #4509: can't resize a bytearray when there are buffer exports, even
         # if it wouldn't reallocate the underlying buffer.
@@ -1618,26 +1611,6 @@ class ByteArrayTest(BaseBytesTest, unittest.TestCase):
             b[1:-1:2] = b""
         self.assertRaises(BufferError, delslice)
         self.assertEqual(b, orig)
-
-    @test.support.impl_detail("resizing semantics", cpython=False)
-    def test_resize_forbidden_non_cpython(self):
-        # on non-CPython implementations, we cannot prevent changes to
-        # bytearrays just because there are buffers around.  Instead,
-        # we get (on PyPy) a buffer that follows the changes and resizes.
-        b = bytearray(range(10))
-        v = memoryview(b)
-        b[5] = 99
-        self.assertIn(v[5], (99, bytes([99])))
-        b[5] = 100
-        b += b
-        b += b
-        b += b
-        self.assertEqual(len(v), 80)
-        self.assertIn(v[5], (100, bytes([100])))
-        self.assertIn(v[79], (9, bytes([9])))
-        del b[10:]
-        self.assertRaises(IndexError, lambda: v[10])
-        self.assertEqual(len(v), 10)
 
     @test.support.cpython_only
     def test_obsolete_write_lock(self):

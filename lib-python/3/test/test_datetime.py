@@ -24,9 +24,6 @@ def load_tests(loader, tests, pattern):
     # not believe this, but in spite of all the sys.modules trickery running a _Pure
     # test last will leave a mix of pure and native datetime stuff lying around.
     for module, suffix in zip(test_modules, test_suffixes):
-        # PyPy does not have _datetime
-        if module is None:
-            continue
         test_classes = []
         for name, cls in module.__dict__.items():
             if not isinstance(cls, type):

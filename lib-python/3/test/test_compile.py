@@ -8,7 +8,6 @@ import tempfile
 import types
 from test import support
 from test.support import script_helper, FakePath
-from test.support import check_impl_detail
 
 class TestSpecifics(unittest.TestCase):
 
@@ -517,9 +516,7 @@ if 1:
 
     def test_bad_single_statement(self):
         self.assertInvalidSingle('1\n2')
-        if check_impl_detail():
-            # it's a single statment in PyPy
-            self.assertInvalidSingle('def f(): pass')
+        self.assertInvalidSingle('def f(): pass')
         self.assertInvalidSingle('a = 13\nb = 187')
         self.assertInvalidSingle('del x\ndel y')
         self.assertInvalidSingle('f()\ng()')
@@ -535,8 +532,7 @@ if 1:
             with open(fn, "wb") as fp:
                 fp.write(src)
             res = script_helper.run_python_until_end(fn)[0]
-        # PyPy change: we have a different error here
-        self.assertIn(b"SyntaxError", res.err)
+        self.assertIn(b"Non-UTF-8", res.err)
 
     def test_yet_more_evil_still_undecodable(self):
         # Issue #25388

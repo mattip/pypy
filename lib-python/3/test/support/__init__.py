@@ -1086,9 +1086,7 @@ def check_syntax_error(testcase, statement, errtext='', *, lineno=None, offset=N
     if lineno is not None:
         testcase.assertEqual(err.lineno, lineno)
     testcase.assertIsNotNone(err.offset)
-    # Don't check the offset on PyPy, it can often be slightly different
-    # than on CPython
-    if offset is not None and check_impl_detail():
+    if offset is not None:
         testcase.assertEqual(err.offset, offset)
 
 def check_syntax_warning(testcase, statement, errtext='', *, lineno=1, offset=None):
@@ -2079,9 +2077,7 @@ def threading_cleanup(*original_values):
 
     for count in range(_MAX_COUNT):
         values = _thread._count(), threading._dangling
-        # PyPy: threading._dangling is a weakrefset, the repr may have changed
-        # so old == new can fail. Compare only the count.
-        if values[0] == original_values[0]:
+        if values == original_values:
             break
 
         if not count:
@@ -3219,7 +3215,10 @@ def wait_process(pid, *, exitcode, timeout=None):
 
 
 def use_old_parser():
-    return False # PyPy doesn't support the old parser
+    import _testinternalcapi
+    config = _testinternalcapi.get_configs()
+    return (config['config']['_use_peg_parser'] == 0)
+
 
 def skip_if_new_parser(msg):
     return unittest.skipIf(not use_old_parser(), msg)

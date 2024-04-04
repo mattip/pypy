@@ -1,6 +1,5 @@
 from test.support import (gc_collect, bigmemtest, _2G,
                           cpython_only, captured_stdout)
-from test.support import impl_detail
 import locale
 import re
 import sre_compile
@@ -54,7 +53,6 @@ class ReTests(unittest.TestCase):
             if pos is not None:
                 self.assertEqual(err.pos, pos)
 
-    @impl_detail("pypy buffers can be resized", pypy=False)
     def test_keep_buffer(self):
         # See bug 14212
         b = bytearray(b'x')
@@ -1825,6 +1823,7 @@ class ReTests(unittest.TestCase):
         self.assertRaises(OverflowError, re.compile, r".{%d,}?" % 2**128)
         self.assertRaises(OverflowError, re.compile, r".{%d,%d}" % (2**129, 2**128))
 
+    @cpython_only
     def test_repeat_minmax_overflow_maxrepeat(self):
         try:
             from _sre import MAXREPEAT

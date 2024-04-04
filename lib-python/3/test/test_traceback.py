@@ -8,7 +8,6 @@ import unittest
 import re
 from test import support
 from test.support import TESTFN, Error, captured_output, unlink, cpython_only, ALWAYS_EQ
-from test.support import impl_detail
 from test.support.script_helper import assert_python_ok
 import textwrap
 
@@ -73,7 +72,6 @@ class TracebackCases(unittest.TestCase):
         self.assertEqual(len(err), 3)
         self.assertEqual(err[1].strip(), "bad syntax")
 
-    @cpython_only
     def test_bad_indentation(self):
         err = self.get_exception_format(self.syntax_error_bad_indentation,
                                         IndentationError)
@@ -212,7 +210,6 @@ class TracebackCases(unittest.TestCase):
         # Issue #18960: coding spec should have no effect
         do_test("x=0\n# coding: GBK\n", "h\xe9 ho", 'utf-8', 5)
 
-    @impl_detail(pypy=False)   # __del__ is typically not called at shutdown
     def test_print_traceback_at_exit(self):
         # Issue #22599: Ensure that it is possible to use the traceback module
         # to display an exception at Python exit
@@ -387,8 +384,7 @@ class TracebackFormatTests(unittest.TestCase):
 
         # Check the recursion count is roughly as expected
         rec_limit = sys.getrecursionlimit()
-        # PyPy's recursion limit is a lot less precise
-        self.assertIn(int(re.search(r"\d+", actual[-2]).group()), range(rec_limit-100, 2*rec_limit))
+        self.assertIn(int(re.search(r"\d+", actual[-2]).group()), range(rec_limit-60, rec_limit))
 
         # Check a known (limited) number of recursive invocations
         def g(count=10):
@@ -1193,7 +1189,6 @@ class TestTracebackException(unittest.TestCase):
         self.assertEqual(exc_info[0], exc.exc_type)
         self.assertEqual(str(exc_info[1]), str(exc))
 
-    @cpython_only
     def test_no_refs_to_exception_and_traceback_objects(self):
         try:
             1/0

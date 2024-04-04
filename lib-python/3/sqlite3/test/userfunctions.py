@@ -24,7 +24,6 @@
 import unittest
 import unittest.mock
 import sqlite3 as sqlite
-import sys
 
 def func_returntext():
     return "foo"
@@ -266,15 +265,9 @@ class FunctionTests(unittest.TestCase):
                                "select spam(?)", (1 << 65,))
 
     def CheckNonContiguousBlob(self):
-        # passes on PyPY, fails on CPython
-        if sys.implementation.name == 'pypy':
-            cur = self.con.execute("select spam(?)",
-                                   (memoryview(b"blob")[::2],))
-            self.assertTrue(cur.fetchone()[0])
-        else:
-            self.assertRaisesRegex(ValueError, "could not convert BLOB to buffer",
-                                   self.con.execute, "select spam(?)",
-                                   (memoryview(b"blob")[::2],))
+        self.assertRaisesRegex(ValueError, "could not convert BLOB to buffer",
+                               self.con.execute, "select spam(?)",
+                               (memoryview(b"blob")[::2],))
 
     def CheckParamSurrogates(self):
         self.assertRaisesRegex(UnicodeEncodeError, "surrogates not allowed",
@@ -384,12 +377,10 @@ class AggregateTests(unittest.TestCase):
             self.con.create_function("bla", -100, AggrSum)
 
     def CheckAggrNoStep(self):
-        # XXX it's better to raise OperationalError in order to stop
-        # the query earlier.
         cur = self.con.cursor()
-        with self.assertRaises(sqlite.OperationalError) as cm:
+        with self.assertRaises(AttributeError) as cm:
             cur.execute("select nostep(t) from test")
-        self.assertEqual(str(cm.exception), "user-defined aggregate's 'step' method raised error")
+        self.assertEqual(str(cm.exception), "'AggrNoStep' object has no attribute 'step'")
 
     def CheckAggrNoFinalize(self):
         cur = self.con.cursor()

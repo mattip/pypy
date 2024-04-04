@@ -80,8 +80,7 @@ class FinalizationTest(unittest.TestCase):
         g = gen()
         next(g)
         g.send(g)
-        if hasattr(sys, 'getrefcount'):
-            self.assertGreater(sys.getrefcount(g), 2)
+        self.assertGreater(sys.getrefcount(g), 2)
         self.assertFalse(finalized)
         del g
         support.gc_collect()
@@ -130,9 +129,8 @@ class GeneratorTest(unittest.TestCase):
         # generator names must be a string and cannot be deleted
         self.assertRaises(TypeError, setattr, gen, '__name__', 123)
         self.assertRaises(TypeError, setattr, gen, '__qualname__', 123)
-        # PyPy: raises AttributeError
-        self.assertRaises((TypeError, AttributeError), delattr, gen, '__name__')
-        self.assertRaises((TypeError, AttributeError), delattr, gen, '__qualname__')
+        self.assertRaises(TypeError, delattr, gen, '__name__')
+        self.assertRaises(TypeError, delattr, gen, '__qualname__')
 
         # modify names of the function creating the generator
         func.__qualname__ = "func_qualname"
@@ -906,10 +904,7 @@ And more, added later.
 0
 >>> type(i.gi_frame)
 <class 'frame'>
-
-PyPy prints "readonly attribute 'gi_running'" so ignore the exception detail
-
->>> i.gi_running = 42 # doctest: +IGNORE_EXCEPTION_DETAIL
+>>> i.gi_running = 42
 Traceback (most recent call last):
   ...
 AttributeError: readonly attribute
@@ -2297,8 +2292,6 @@ refleaks_tests = """
 Prior to adding cycle-GC support to itertools.tee, this code would leak
 references. We add it to the standard suite so the routine refleak-tests
 would trigger if it starts being uncleanable again.
-
->>> from test.support import gc_collect
 
 >>> import itertools
 >>> def leak():

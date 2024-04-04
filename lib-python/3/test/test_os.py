@@ -482,8 +482,7 @@ class StatAttributeTests(unittest.TestCase):
         self.assertTrue(isinstance(result.f_fsid, int))
 
         # Test that the size of the tuple doesn't change
-        # PyPy - structseq does not hide f_fsid
-        # self.assertEqual(len(result), 10)
+        self.assertEqual(len(result), 10)
 
         # Make sure that assignment really fails
         try:

@@ -331,7 +331,6 @@ class DictTest(unittest.TestCase):
                 self.assertNotEqual(d, d2)
                 self.assertEqual(len(d2), len(d) + 1)
 
-    @support.cpython_only
     def test_copy_maintains_tracking(self):
         class A:
             pass
@@ -455,8 +454,7 @@ class DictTest(unittest.TestCase):
                     self.assertEqual(va, int(ka))
                     kb, vb = tb = b.popitem()
                     self.assertEqual(vb, int(kb))
-                    if support.check_impl_detail():
-                        self.assertFalse(copymode < 0 and ta != tb)
+                    self.assertFalse(copymode < 0 and ta != tb)
                 self.assertFalse(a)
                 self.assertFalse(b)
 
@@ -504,7 +502,6 @@ class DictTest(unittest.TestCase):
             for i in d:
                 d[i+1] = 1
 
-    @support.cpython_only
     def test_mutating_iteration_delete(self):
         # change dict content during iteration
         d = {}
@@ -514,7 +511,6 @@ class DictTest(unittest.TestCase):
                 del d[0]
                 d[0] = 0
 
-    @support.cpython_only
     def test_mutating_iteration_delete_over_values(self):
         # change dict content during iteration
         d = {}
@@ -524,7 +520,6 @@ class DictTest(unittest.TestCase):
                 del d[0]
                 d[0] = 0
 
-    @support.cpython_only
     def test_mutating_iteration_delete_over_items(self):
         # change dict content during iteration
         d = {}
@@ -580,7 +575,7 @@ class DictTest(unittest.TestCase):
 
     def test_repr_deep(self):
         d = {}
-        for i in range(sys.getrecursionlimit() + 500): # pypy difference: pypy is more efficient stack-wise
+        for i in range(sys.getrecursionlimit() + 100):
             d = {1: d}
         self.assertRaises(RecursionError, repr, d)
 
@@ -1249,12 +1244,7 @@ class DictTest(unittest.TestCase):
         other = dict(l)
         other[X()] = 0
         d = {X(): 0, 1: 1}
-        # should not crash, but can raise RuntimeError (CPython)
-        # or not (PyPy)
-        try:
-            d.update(other)
-        except RuntimeError:
-            pass
+        self.assertRaises(RuntimeError, d.update, other)
 
     def test_free_after_iterating(self):
         support.check_free_after_iterating(self, iter, dict)
@@ -1262,7 +1252,6 @@ class DictTest(unittest.TestCase):
         support.check_free_after_iterating(self, lambda d: iter(d.values()), dict)
         support.check_free_after_iterating(self, lambda d: iter(d.items()), dict)
 
-    @support.cpython_only
     def test_equal_operator_modifying_operand(self):
         # test fix for seg fault reported in bpo-27945 part 3.
         class X():
@@ -1368,7 +1357,6 @@ class DictTest(unittest.TestCase):
             for result in d.items():
                 if result[0] == 2:
                     d[2] = None # free d[2] --> X(2).__del__ was called
-                gc.collect()
 
         self.assertRaises(RuntimeError, iter_and_mutate)
 

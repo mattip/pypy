@@ -58,19 +58,9 @@ except TypeError:
     FrameType = type(tb.tb_frame)
     tb = None; del tb
 
-#
-# On CPython, FunctionType.__code__ is a 'getset_descriptor', but
-# FunctionType.__globals__ is a 'member_descriptor', just like app-level
-# slots.  On PyPy, all descriptors of built-in types are
-# 'getset_descriptor', but the app-level slots are 'member_descriptor'
-# as well.  (On Jython the situation might still be different.)
-#
-# Note that MemberDescriptorType was equal to GetSetDescriptorType in
-# PyPy <= 6.0.
-#
+# For Jython, the following two types are identical
 GetSetDescriptorType = type(FunctionType.__code__)
-class _C: __slots__ = 's'
-MemberDescriptorType = type(_C.s)
+MemberDescriptorType = type(FunctionType.__globals__)
 
 del sys, _f, _g, _C, _c, _ag  # Not for export
 
@@ -302,7 +292,8 @@ def coroutine(func):
 
     return wrapped
 
-from _pypy_generic_alias import GenericAlias
+
+GenericAlias = type(list[int])
 
 
 __all__ = [n for n in globals() if n[:1] != '_']

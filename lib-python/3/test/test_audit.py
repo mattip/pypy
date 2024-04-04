@@ -51,7 +51,6 @@ class AuditTest(unittest.TestCase):
     def test_block_add_hook_baseexception(self):
         self.do_test("test_block_add_hook_baseexception")
 
-    @support.cpython_only
     def test_marshal(self):
         support.import_module("marshal")
 
@@ -62,17 +61,13 @@ class AuditTest(unittest.TestCase):
 
         self.do_test("test_pickle")
 
-    @support.cpython_only
     def test_monkeypatch(self):
-        # No audit("object.__setattr__"), audit("object.__delattr__") on PyPy
         self.do_test("test_monkeypatch")
 
     def test_open(self):
         self.do_test("test_open", support.TESTFN)
 
-    @support.cpython_only
     def test_cantrace(self):
-        # The test uses frame-specific behaviour that is not supported on PyPy
         self.do_test("test_cantrace")
 
     def test_mmap(self):

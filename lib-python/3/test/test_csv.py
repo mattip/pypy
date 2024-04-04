@@ -28,8 +28,7 @@ class Test_Csv(unittest.TestCase):
     """
     def _test_arg_valid(self, ctor, arg):
         self.assertRaises(TypeError, ctor)
-        # PyPy gets an AttributeError instead of a TypeError
-        self.assertRaises((TypeError, AttributeError), ctor, None)
+        self.assertRaises(TypeError, ctor, None)
         self.assertRaises(TypeError, ctor, arg, bad_attr = 0)
         self.assertRaises(TypeError, ctor, arg, delimiter = 0)
         self.assertRaises(TypeError, ctor, arg, delimiter = 'XX')
@@ -149,8 +148,7 @@ class Test_Csv(unittest.TestCase):
             self.assertEqual(fileobj.read(), '')
 
     def test_write_arg_valid(self):
-        # PyPy gets a TypeError instead of a csv.Error for "not a sequence"
-        self._write_error_test((csv.Error, TypeError), None)
+        self._write_error_test(csv.Error, None)
         self._write_test((), '')
         self._write_test([None], '""')
         self._write_error_test(csv.Error, [None], quoting = csv.QUOTE_NONE)
@@ -277,8 +275,7 @@ class Test_Csv(unittest.TestCase):
                           ['ab\0c'], None, strict = 1)
         self._read_test(['"ab"c'], [['abc']], doublequote = 0)
 
-        # PyPy gets a TypeError instead of a csv.Error for bytes input
-        self.assertRaises((csv.Error, TypeError), self._read_test,
+        self.assertRaises(csv.Error, self._read_test,
                           [b'ab\0c'], None)
 
 
@@ -883,11 +880,8 @@ class TestDialectValidity(unittest.TestCase):
         mydialect.quotechar = 4
         with self.assertRaises(csv.Error) as cm:
             mydialect()
-        if sys.implementation.name == 'pypy':
-            msg = '"quotechar" must be string, not int'
-        else:
-            msg = '"quotechar" must be string or None, not int'
-        self.assertEqual(str(cm.exception), msg)
+        self.assertEqual(str(cm.exception),
+                         '"quotechar" must be string or None, not int')
 
     def test_delimiter(self):
         class mydialect(csv.Dialect):
@@ -927,11 +921,8 @@ class TestDialectValidity(unittest.TestCase):
         mydialect.delimiter = None
         with self.assertRaises(csv.Error) as cm:
             mydialect()
-        if sys.implementation.name == 'pypy':
-            msg = '"delimiter" must be a 1-character string'
-        else:
-            msg = '"delimiter" must be string, not NoneType'
-        self.assertEqual(str(cm.exception), msg)
+        self.assertEqual(str(cm.exception),
+                         '"delimiter" must be string, not NoneType')
 
     def test_escapechar(self):
         class mydialect(csv.Dialect):
@@ -948,16 +939,12 @@ class TestDialectValidity(unittest.TestCase):
         with self.assertRaisesRegex(csv.Error, '"escapechar" must be a 1-character string'):
             mydialect()
 
-        if sys.implementation.name == 'pypy':
-            start = '"escapechar" must be string, not '
-        else:
-            start = '"escapechar" must be string or None, not '
         mydialect.escapechar = b"*"
-        with self.assertRaisesRegex(csv.Error, start + 'bytes'):
+        with self.assertRaisesRegex(csv.Error, '"escapechar" must be string or None, not bytes'):
             mydialect()
 
         mydialect.escapechar = 4
-        with self.assertRaisesRegex(csv.Error, start + 'int'):
+        with self.assertRaisesRegex(csv.Error, '"escapechar" must be string or None, not int'):
             mydialect()
 
     def test_lineterminator(self):

@@ -1,4 +1,3 @@
-from test import support
 import collections.abc
 import copy
 import pickle
@@ -7,7 +6,6 @@ import unittest
 
 class DictSetTest(unittest.TestCase):
 
-    @support.cpython_only
     def test_constructors_not_callable(self):
         kt = type({}.keys())
         self.assertRaises(TypeError, kt, {})

@@ -9,11 +9,6 @@ import warnings
 from test import support
 from test.support.script_helper import assert_python_ok
 
-def _getrefcount(obj):
-    if hasattr(sys, 'getrefcount'):
-        return sys.getrefcount(obj)
-    return '<no reference counts on this implementation>'
-
 
 class AsyncYieldFrom:
     def __init__(self, obj):
@@ -384,12 +379,6 @@ class AsyncBadSyntaxTest(unittest.TestCase):
             ]
 
         for code in samples:
-            try:
-                compile(code, "<text>", "exec")
-            except SyntaxError:
-                pass
-            else:
-                print(code)
             with self.subTest(code=code), self.assertRaises(SyntaxError):
                 compile(code, "<test>", "exec")
 
@@ -936,12 +925,9 @@ class CoroutineTest(unittest.TestCase):
 
     def test_corotype_1(self):
         ct = types.CoroutineType
-        self.assertTrue('into coroutine' in ct.send.__doc__ or
-                     'into generator/coroutine' in ct.send.__doc__)
-        self.assertTrue('inside coroutine' in ct.close.__doc__ or
-                     'inside generator/coroutine' in ct.close.__doc__)
-        self.assertTrue('in coroutine' in ct.throw.__doc__ or
-                     'in generator/coroutine' in ct.throw.__doc__)
+        self.assertIn('into coroutine', ct.send.__doc__)
+        self.assertIn('inside coroutine', ct.close.__doc__)
+        self.assertIn('in coroutine', ct.throw.__doc__)
         self.assertIn('of the coroutine', ct.__dict__['__name__'].__doc__)
         self.assertIn('of the coroutine', ct.__dict__['__qualname__'].__doc__)
         self.assertEqual(ct.__name__, 'coroutine')
@@ -1292,8 +1278,8 @@ class CoroutineTest(unittest.TestCase):
 
         with self.assertRaisesRegex(
                 TypeError,
-                # XXX: PyPy change
-                "object int can't be used in 'await' expression"):
+                "'async with' received an object from __aenter__ "
+                "that does not implement __await__: int"):
             # it's important that __aexit__ wasn't called
             run_async(foo())
 
@@ -1315,8 +1301,8 @@ class CoroutineTest(unittest.TestCase):
         except TypeError as exc:
             self.assertRegex(
                 exc.args[0],
-                # XXX: PyPy change
-                "object int can't be used in 'await' expression")
+                "'async with' received an object from __aexit__ "
+                "that does not implement __await__: int")
             self.assertTrue(exc.__context__ is not None)
             self.assertTrue(isinstance(exc.__context__, ZeroDivisionError))
         else:
@@ -1340,8 +1326,8 @@ class CoroutineTest(unittest.TestCase):
                 CNT += 1
         with self.assertRaisesRegex(
                 TypeError,
-                # XXX: PyPy change
-                "object int can't be used in 'await' expression"):
+                "'async with' received an object from __aexit__ "
+                "that does not implement __await__: int"):
             run_async(foo())
         self.assertEqual(CNT, 1)
 
@@ -1354,8 +1340,8 @@ class CoroutineTest(unittest.TestCase):
                     break
         with self.assertRaisesRegex(
                 TypeError,
-                # XXX: PyPy change
-                "object int can't be used in 'await' expression"):
+                "'async with' received an object from __aexit__ "
+                "that does not implement __await__: int"):
             run_async(foo())
         self.assertEqual(CNT, 2)
 
@@ -1368,8 +1354,8 @@ class CoroutineTest(unittest.TestCase):
                     continue
         with self.assertRaisesRegex(
                 TypeError,
-                # XXX: PyPy change
-                "object int can't be used in 'await' expression"):
+                "'async with' received an object from __aexit__ "
+                "that does not implement __await__: int"):
             run_async(foo())
         self.assertEqual(CNT, 3)
 
@@ -1381,8 +1367,8 @@ class CoroutineTest(unittest.TestCase):
                 return
         with self.assertRaisesRegex(
                 TypeError,
-                # XXX: PyPy change
-                "object int can't be used in 'await' expression"):
+                "'async with' received an object from __aexit__ "
+                "that does not implement __await__: int"):
             run_async(foo())
         self.assertEqual(CNT, 4)
 
@@ -1568,7 +1554,7 @@ class CoroutineTest(unittest.TestCase):
 
     def test_for_2(self):
         tup = (1, 2, 3)
-        refs_before = _getrefcount(tup)
+        refs_before = sys.getrefcount(tup)
 
         async def foo():
             async for i in tup:
@@ -1579,7 +1565,7 @@ class CoroutineTest(unittest.TestCase):
 
             run_async(foo())
 
-        self.assertEqual(_getrefcount(tup), refs_before)
+        self.assertEqual(sys.getrefcount(tup), refs_before)
 
     def test_for_3(self):
         class I:
@@ -1587,7 +1573,7 @@ class CoroutineTest(unittest.TestCase):
                 return self
 
         aiter = I()
-        refs_before = _getrefcount(aiter)
+        refs_before = sys.getrefcount(aiter)
 
         async def foo():
             async for i in aiter:
@@ -1599,7 +1585,7 @@ class CoroutineTest(unittest.TestCase):
 
             run_async(foo())
 
-        self.assertEqual(_getrefcount(aiter), refs_before)
+        self.assertEqual(sys.getrefcount(aiter), refs_before)
 
     def test_for_4(self):
         class I:
@@ -1610,7 +1596,7 @@ class CoroutineTest(unittest.TestCase):
                 return ()
 
         aiter = I()
-        refs_before = _getrefcount(aiter)
+        refs_before = sys.getrefcount(aiter)
 
         async def foo():
             async for i in aiter:
@@ -1622,7 +1608,7 @@ class CoroutineTest(unittest.TestCase):
 
             run_async(foo())
 
-        self.assertEqual(_getrefcount(aiter), refs_before)
+        self.assertEqual(sys.getrefcount(aiter), refs_before)
 
     def test_for_6(self):
         I = 0
@@ -1653,8 +1639,8 @@ class CoroutineTest(unittest.TestCase):
 
         manager = Manager()
         iterable = Iterable()
-        mrefs_before = _getrefcount(manager)
-        irefs_before = _getrefcount(iterable)
+        mrefs_before = sys.getrefcount(manager)
+        irefs_before = sys.getrefcount(iterable)
 
         async def main():
             nonlocal I
@@ -1671,8 +1657,8 @@ class CoroutineTest(unittest.TestCase):
             run_async(main())
         self.assertEqual(I, 111011)
 
-        self.assertEqual(_getrefcount(manager), mrefs_before)
-        self.assertEqual(_getrefcount(iterable), irefs_before)
+        self.assertEqual(sys.getrefcount(manager), mrefs_before)
+        self.assertEqual(sys.getrefcount(iterable), irefs_before)
 
         ##############
 
@@ -2267,7 +2253,6 @@ class OriginTrackingTest(unittest.TestCase):
         finally:
             sys.set_coroutine_origin_tracking_depth(orig_depth)
 
-    @support.cpython_only # pypy has this function in _warnings
     def test_unawaited_warning_when_module_broken(self):
         # Make sure we don't blow up too bad if
         # warnings._warn_unawaited_coroutine is broken somehow (e.g. because

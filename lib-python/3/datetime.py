@@ -12,12 +12,6 @@ import time as _time
 import math as _math
 import sys
 
-# for cpyext, use these as base classes
-try:
-    from __pypy__._pypydatetime import dateinterop, deltainterop, timeinterop
-except ImportError:
-    dateinterop = deltainterop = timeinterop = object
-
 def _cmp(x, y):
     return 0 if x == y else 1 if x > y else -1
 
@@ -270,8 +264,6 @@ def _wrap_strftime(object, format, timetuple):
 def _parse_isoformat_date(dtstr):
     # It is assumed that this function will only be called with a
     # string of length exactly 10, and (though this is not used) ASCII-only
-    if len(dtstr) < 10:
-        raise ValueError('isoformat expects a string of length 10')
     year = int(dtstr[0:4])
     if dtstr[4] != '-':
         raise ValueError('Invalid date separator: %s' % dtstr[4])
@@ -477,7 +469,8 @@ def _divide_and_round(a, b):
 
     return q
 
-class timedelta(deltainterop):
+
+class timedelta:
     """Represent the difference between two datetime objects.
 
     Supported operators:
@@ -590,7 +583,7 @@ class timedelta(deltainterop):
         if abs(d) > 999999999:
             raise OverflowError("timedelta # of days is too large: %d" % d)
 
-        self = deltainterop.__new__(cls)
+        self = object.__new__(cls)
         self._days = d
         self._seconds = s
         self._microseconds = us
@@ -677,11 +670,7 @@ class timedelta(deltainterop):
                          -self._microseconds)
 
     def __pos__(self):
-        # for CPython compatibility, we cannot use
-        # our __class__ here, but need a real timedelta
-        return timedelta(self._days,
-                         self._seconds,
-                         self._microseconds)
+        return self
 
     def __abs__(self):
         if self._days < 0:
@@ -801,7 +790,7 @@ timedelta.max = timedelta(days=999999999, hours=23, minutes=59, seconds=59,
                           microseconds=999999)
 timedelta.resolution = timedelta(microseconds=1)
 
-class date(dateinterop):
+class date:
     """Concrete date type.
 
     Constructors:
@@ -851,12 +840,12 @@ class date(dateinterop):
                         "Failed to encode latin1 string when unpickling "
                         "a date object. "
                         "pickle.load(data, encoding='latin1') is assumed.")
-            self = dateinterop.__new__(cls)
+            self = object.__new__(cls)
             self.__setstate(year)
             self._hashcode = -1
             return self
         year, month, day = _check_date_fields(year, month, day)
-        self = dateinterop.__new__(cls)
+        self = object.__new__(cls)
         self._year = year
         self._month = month
         self._day = day
@@ -966,9 +955,9 @@ class date(dateinterop):
             _MONTHNAMES[self._month],
             self._day, self._year)
 
-    def strftime(self, format):
+    def strftime(self, fmt):
         "Format using strftime()."
-        return _wrap_strftime(self, format, self.timetuple())
+        return _wrap_strftime(self, fmt, self.timetuple())
 
     def __format__(self, fmt):
         if not isinstance(fmt, str):
@@ -1030,7 +1019,7 @@ class date(dateinterop):
             month = self._month
         if day is None:
             day = self._day
-        return date.__new__(type(self), year, month, day)
+        return type(self)(year, month, day)
 
     # Comparisons of date objects with other.
 
@@ -1221,11 +1210,6 @@ class tzinfo:
         else:
             return (self.__class__, args, state)
 
-    # PyPy: added for compatibility with the _datetime module
-    # issue #2489
-    def __new__(cls, *args, **kwds):
-        return super(tzinfo, cls).__new__(cls)
-
 
 class IsoCalendarDate(tuple):
 
@@ -1258,7 +1242,7 @@ _IsoCalendarDate = IsoCalendarDate
 del IsoCalendarDate
 _tzinfo_class = tzinfo
 
-class time(timeinterop):
+class time:
     """Time with time zone.
 
     Constructors:
@@ -1305,14 +1289,14 @@ class time(timeinterop):
                         "Failed to encode latin1 string when unpickling "
                         "a time object. "
                         "pickle.load(data, encoding='latin1') is assumed.")
-            self = timeinterop.__new__(cls)
+            self = object.__new__(cls)
             self.__setstate(hour, minute or None)
             self._hashcode = -1
             return self
         hour, minute, second, microsecond, fold = _check_time_fields(
             hour, minute, second, microsecond, fold)
         _check_tzinfo_arg(tzinfo)
-        self = timeinterop.__new__(cls)
+        self = object.__new__(cls)
         self._hour = hour
         self._minute = minute
         self._second = second
@@ -1417,22 +1401,22 @@ class time(timeinterop):
     def __hash__(self):
         """Hash."""
         if self._hashcode == -1:
-            if self.fold:  # XXX: (PyPy) check this
-                self = self.replace(fold=0)
-            # PyPy: uses an algo that, like _datetimemodule.c and
-            # unlike the pure Python version, always relies on the
-            # nondeterministic hash on strings.  Well, if we have no
-            # tzoff, that is.  If we have tzoff then CPython's hashes
-            # are again deterministic.  I have no clue why.  We'll go
-            # for now for also being nondeterministic in this case.
-            myhhmm = self._hour * 60 + self._minute
-            myoffset = self.utcoffset()
-            if myoffset is not None:
-                myhhmm -= myoffset // timedelta(minutes=1)
-            temp1 = '%d@%d@%d' % (myhhmm,
-                                  self._second,
-                                  self._microsecond)
-            self._hashcode = hash(temp1)
+            if self.fold:
+                t = self.replace(fold=0)
+            else:
+                t = self
+            tzoff = t.utcoffset()
+            if not tzoff:  # zero or None
+                self._hashcode = hash(t._getstate()[0])
+            else:
+                h, m = divmod(timedelta(hours=self.hour, minutes=self.minute) - tzoff,
+                              timedelta(hours=1))
+                assert not m % timedelta(minutes=1), "whole minute"
+                m //= timedelta(minutes=1)
+                if 0 <= h < 24:
+                    self._hashcode = hash(time(h, m, self.second, self.microsecond))
+                else:
+                    self._hashcode = hash((h, m, self.second, self.microsecond))
         return self._hashcode
 
     # Conversion to string
@@ -1492,7 +1476,7 @@ class time(timeinterop):
             raise ValueError(f'Invalid isoformat string: {time_string!r}')
 
 
-    def strftime(self, format):
+    def strftime(self, fmt):
         """Format using strftime().  The date part of the timestamp passed
         to underlying strftime should not be used.
         """
@@ -1501,7 +1485,7 @@ class time(timeinterop):
         timetuple = (1900, 1, 1,
                      self._hour, self._minute, self._second,
                      0, 1, -1)
-        return _wrap_strftime(self, format, timetuple)
+        return _wrap_strftime(self, fmt, timetuple)
 
     def __format__(self, fmt):
         if not isinstance(fmt, str):
@@ -1564,8 +1548,7 @@ class time(timeinterop):
             tzinfo = self.tzinfo
         if fold is None:
             fold = self._fold
-        return time.__new__(
-            type(self), hour, minute, second, microsecond, tzinfo, fold=fold)
+        return type(self)(hour, minute, second, microsecond, tzinfo, fold=fold)
 
     # Pickle support.
 
@@ -1614,7 +1597,7 @@ class datetime(date):
     The year, month and day arguments are required. tzinfo may be None, or an
     instance of a tzinfo subclass. The remaining arguments may be ints.
     """
-    __slots__ = time.__slots__
+    __slots__ = date.__slots__ + time.__slots__
 
     def __new__(cls, year, month=None, day=None, hour=0, minute=0, second=0,
                 microsecond=0, tzinfo=None, *, fold=0):
@@ -1630,26 +1613,22 @@ class datetime(date):
                         "Failed to encode latin1 string when unpickling "
                         "a datetime object. "
                         "pickle.load(data, encoding='latin1') is assumed.")
-            self = dateinterop.__new__(cls)
+            self = object.__new__(cls)
             self.__setstate(year, month)
             self._hashcode = -1
             return self
-        elif isinstance(year, tuple) and len(year) == 7:
-            # Internal operation - numbers guaranteed to be valid
-            year, month, day, hour, minute, second, microsecond = year
-        else:
-            year, month, day = _check_date_fields(year, month, day)
-            hour, minute, second, microsecond, fold = _check_time_fields(
-                hour, minute, second, microsecond, fold)
+        year, month, day = _check_date_fields(year, month, day)
+        hour, minute, second, microsecond, fold = _check_time_fields(
+            hour, minute, second, microsecond, fold)
         _check_tzinfo_arg(tzinfo)
-        self = dateinterop.__new__(cls)
-        self._year = int(year)
-        self._month = int(month)
-        self._day = int(day)
-        self._hour = int(hour)
-        self._minute = int(minute)
-        self._second = int(second)
-        self._microsecond = int(microsecond)
+        self = object.__new__(cls)
+        self._year = year
+        self._month = month
+        self._day = day
+        self._hour = hour
+        self._minute = minute
+        self._second = second
+        self._microsecond = microsecond
         self._tzinfo = tzinfo
         self._hashcode = -1
         self._fold = fold
@@ -1894,9 +1873,8 @@ class datetime(date):
             tzinfo = self.tzinfo
         if fold is None:
             fold = self.fold
-        return datetime.__new__(
-            type(self), year, month, day, hour, minute, second, microsecond,
-            tzinfo, fold=fold)
+        return type(self)(year, month, day, hour, minute, second,
+                          microsecond, tzinfo, fold=fold)
 
     def _local_timezone(self):
         if self.tzinfo is None:
@@ -2123,18 +2101,20 @@ class datetime(date):
         "Add a datetime and a timedelta."
         if not isinstance(other, timedelta):
             return NotImplemented
-
-        result = _normalize_datetime(
-            self._year,
-            self._month,
-            self._day + other.days,
-            self._hour,
-            self._minute,
-            self._second + other.seconds,
-            self._microsecond + other.microseconds,
-        )
-
-        return type(self)(result, tzinfo=self._tzinfo)
+        delta = timedelta(self.toordinal(),
+                          hours=self._hour,
+                          minutes=self._minute,
+                          seconds=self._second,
+                          microseconds=self._microsecond)
+        delta += other
+        hour, rem = divmod(delta.seconds, 3600)
+        minute, second = divmod(rem, 60)
+        if 0 < delta.days <= _MAXORDINAL:
+            return type(self).combine(date.fromordinal(delta.days),
+                                      time(hour, minute, second,
+                                           delta.microseconds,
+                                           tzinfo=self._tzinfo))
+        raise OverflowError("result out of range")
 
     __radd__ = __add__
 
@@ -2159,10 +2139,7 @@ class datetime(date):
         if myoff == otoff:
             return base
         if myoff is None or otoff is None:
-            # The CPython _datetimemodule.c error message and the
-            # datetime.py one are different
-            raise TypeError("can't subtract offset-naive and "
-                                    "offset-aware datetimes")
+            raise TypeError("cannot mix naive and timezone-aware time")
         return base + otoff - myoff
 
     def __hash__(self):
@@ -2175,16 +2152,9 @@ class datetime(date):
             if tzoff is None:
                 self._hashcode = hash(t._getstate()[0])
             else:
-                # PyPy: uses an algo that relies on the hash of strings,
-                # giving a nondeterministic result.  CPython doesn't do
-                # that if there is a tzoff (but does if there is no
-                # tzoff).
                 days = _ymd2ord(self.year, self.month, self.day)
                 seconds = self.hour * 3600 + self.minute * 60 + self.second
-                delta = timedelta(days, seconds, self.microsecond) - tzoff
-                temp1 = '%d&%d&%d' % (delta.days, delta.seconds,
-                                      delta.microseconds)
-                self._hashcode = hash(temp1)
+                self._hashcode = hash(timedelta(days, seconds, self.microsecond) - tzoff)
         return self._hashcode
 
     # Pickle support.
@@ -2231,65 +2201,6 @@ datetime.max = datetime(9999, 12, 31, 23, 59, 59, 999999)
 datetime.resolution = timedelta(microseconds=1)
 
 
-def _normalize_pair(hi, lo, factor):
-    if not 0 <= lo <= factor-1:
-        inc, lo = divmod(lo, factor)
-        hi += inc
-    return hi, lo
-
-
-def _normalize_datetime(y, m, d, hh, mm, ss, us):
-    # Normalize all the inputs, and store the normalized values.
-    ss, us = _normalize_pair(ss, us, 1000000)
-    mm, ss = _normalize_pair(mm, ss, 60)
-    hh, mm = _normalize_pair(hh, mm, 60)
-    d, hh = _normalize_pair(d, hh, 24)
-    y, m, d = _normalize_date(y, m, d)
-    return y, m, d, hh, mm, ss, us
-
-
-def _normalize_date(year, month, day):
-    # That was easy.  Now it gets muddy:  the proper range for day
-    # can't be determined without knowing the correct month and year,
-    # but if day is, e.g., plus or minus a million, the current month
-    # and year values make no sense (and may also be out of bounds
-    # themselves).
-    # Saying 12 months == 1 year should be non-controversial.
-    if not 1 <= month <= 12:
-        year, month = _normalize_pair(year, month-1, 12)
-        month += 1
-        assert 1 <= month <= 12
-
-    # Now only day can be out of bounds (year may also be out of bounds
-    # for a datetime object, but we don't care about that here).
-    # If day is out of bounds, what to do is arguable, but at least the
-    # method here is principled and explainable.
-    dim = _days_in_month(year, month)
-    if not 1 <= day <= dim:
-        # Move day-1 days from the first of the month.  First try to
-        # get off cheap if we're only one day out of range (adjustments
-        # for timezone alone can't be worse than that).
-        if day == 0:    # move back a day
-            month -= 1
-            if month > 0:
-                day = _days_in_month(year, month)
-            else:
-                year, month, day = year-1, 12, 31
-        elif day == dim + 1:    # move forward a day
-            month += 1
-            day = 1
-            if month > 12:
-                month = 1
-                year += 1
-        else:
-            ordinal = _ymd2ord(year, month, 1) + (day - 1)
-            year, month, day = _ord2ymd(ordinal)
-
-    if not MINYEAR <= year <= MAXYEAR:
-        raise OverflowError("date value out of range")
-    return year, month, day
-
-
 def _isoweek1monday(year):
     # Helper to calculate the day number of the Monday starting week 1
     # XXX This could be done more efficiently
@@ -2321,9 +2232,6 @@ class timezone(tzinfo):
                              "strictly between -timedelta(hours=24) and "
                              "timedelta(hours=24).")
         return cls._create(offset, name)
-
-    def __init_subclass__(cls):
-        raise TypeError("type 'datetime.timezone' is not an acceptable base type")
 
     @classmethod
     def _create(cls, offset, name=None):

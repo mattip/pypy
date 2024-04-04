@@ -545,9 +545,8 @@ class CWarnTests(WarnTests, unittest.TestCase):
     # As an early adopter, we sanity check the
     # test.support.import_fresh_module utility function
     def test_accelerated(self):
-        import types
         self.assertIsNot(original_warnings, self.module)
-        self.assertIs(type(self.module.warn), types.BuiltinFunctionType)
+        self.assertFalse(hasattr(self.module.warn, '__code__'))
 
 class PyWarnTests(WarnTests, unittest.TestCase):
     module = py_warnings
@@ -555,9 +554,8 @@ class PyWarnTests(WarnTests, unittest.TestCase):
     # As an early adopter, we sanity check the
     # test.support.import_fresh_module utility function
     def test_pure_python(self):
-        import types
         self.assertIsNot(original_warnings, self.module)
-        self.assertIs(type(self.module.warn), types.FunctionType)
+        self.assertTrue(hasattr(self.module.warn, '__code__'))
 
 
 class WCmdLineTests(BaseTest):
@@ -928,7 +926,6 @@ class CWarningsDisplayTests(WarningsDisplayTests, unittest.TestCase):
 class PyWarningsDisplayTests(WarningsDisplayTests, unittest.TestCase):
     module = py_warnings
 
-    @support.cpython_only  # no tracemalloc on pypy
     def test_tracemalloc(self):
         self.addCleanup(support.unlink, support.TESTFN)
 
@@ -1241,14 +1238,12 @@ class A:
     def __del__(self):
         warn("test")
 
-A()
-import gc; gc.collect()
+a=A()
         """
         rc, out, err = assert_python_ok("-c", code)
         self.assertEqual(err.decode().rstrip(),
                          '<string>:7: UserWarning: test')
 
-    @support.cpython_only
     def test_late_resource_warning(self):
         # Issue #21925: Emitting a ResourceWarning late during the Python
         # shutdown must be logged.

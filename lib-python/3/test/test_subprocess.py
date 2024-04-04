@@ -1943,7 +1943,7 @@ class POSIXProcessTestCase(BaseTestCase):
         with self.assertRaises(ValueError):
             subprocess.check_call(ZERO_RETURN_CMD, extra_groups=[-1])
 
-        with self.assertRaises((ValueError, OverflowError)):
+        with self.assertRaises(ValueError):
             subprocess.check_call(ZERO_RETURN_CMD,
                                   cwd=os.curdir, env=os.environ,
                                   extra_groups=[2**64])
@@ -2075,7 +2075,6 @@ class POSIXProcessTestCase(BaseTestCase):
                         stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE, preexec_fn=raise_it)
 
-    @support.impl_detail("PyPy's _posixsubprocess doesn't have to disable gc")
     def test_preexec_gc_module_failure(self):
         # This tests the code that disables garbage collection if the child
         # process will execute any Python.
@@ -2945,7 +2944,6 @@ class POSIXProcessTestCase(BaseTestCase):
         pid = p.pid
         with support.check_warnings(('', ResourceWarning)):
             p = None
-            support.gc_collect()
 
         if mswindows:
             # subprocess._active is not used on Windows and is set to None.

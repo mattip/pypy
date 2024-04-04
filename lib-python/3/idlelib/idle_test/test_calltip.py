@@ -66,18 +66,18 @@ class Get_argspecTest(unittest.TestCase):
                     f'(iterable=(), /)'
                     f'\n{List.__doc__}')
         tiptest(list.__new__,
-              '(listtype, *args, **keywords)\n'
+              '(*args, **kwargs)\n'
               'Create and return a new object.  '
               'See help(type) for accurate signature.')
         tiptest(list.__init__,
-              '(self, iterable=<no value>, /)\n'
+              '(self, /, *args, **kwargs)\n'
               'Initialize self.  See help(type(self)) for accurate signature.')
         append_doc = "\nAppend object to the end of the list."
-        tiptest(list.append, '(self, item)' + append_doc)
-        tiptest(List.append, '(self, item)' + append_doc)
-        tiptest([].append, '(item)' + append_doc)
+        tiptest(list.append, '(self, object, /)' + append_doc)
+        tiptest(List.append, '(self, object, /)' + append_doc)
+        tiptest([].append, '(object, /)' + append_doc)
 
-        tiptest(types.MethodType, "instancemethod(function, instance, class)")
+        tiptest(types.MethodType, "method(function, instance)")
         tiptest(SB(), default_tip)
 
         p = re.compile('')

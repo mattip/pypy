@@ -1238,12 +1238,6 @@ def test_pdb_next_command_subiterator():
 def test_pdb_issue_20766():
     """Test for reference leaks when the SIGINT handler is set.
 
-    Note a fix for PyPy: on CPython, the two iterations through the loop
-    don't stop at the same line each time.  Actually, if the loop
-    iterates more than twice, we have a behavior of period two(!).  This
-    is due to very internal behavior that could be classified as a bug
-    and that PyPy doesn't emulating exactly.
-
     >>> def test_function():
     ...     i = 1
     ...     while i <= 2:
@@ -1259,8 +1253,8 @@ def test_pdb_issue_20766():
     -> print('pdb %d: %s' % (i, sess._previous_sigint_handler))
     (Pdb) continue
     pdb 1: <built-in function default_int_handler>
-    > <doctest test.test_pdb.test_pdb_issue_20766[0]>(6)test_function()
-    -> print('pdb %d: %s' % (i, sess._previous_sigint_handler))
+    > <doctest test.test_pdb.test_pdb_issue_20766[0]>(5)test_function()
+    -> sess.set_trace(sys._getframe())
     (Pdb) continue
     pdb 2: <built-in function default_int_handler>
     """
@@ -1764,10 +1758,10 @@ def bœr():
         stdout, _ = self.run_pdb_script('', commands + '\n')
 
         self.assertEqual(stdout.splitlines()[1:], [
-            '(Pdb) *** SyntaxError: parenthesis is never closed',
+            '(Pdb) *** SyntaxError: unexpected EOF while parsing',
 
             '(Pdb) ENTERING RECURSIVE DEBUGGER',
-            '*** SyntaxError: parenthesis is never closed',
+            '*** SyntaxError: unexpected EOF while parsing',
             'LEAVING RECURSIVE DEBUGGER',
 
             '(Pdb) ENTERING RECURSIVE DEBUGGER',
